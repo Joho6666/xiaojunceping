@@ -1,0 +1,2 @@
+import { NextResponse } from 'next/server'; import { checkProviderCLI } from '../../../../../../../services/connectionService'; import { ProviderId } from '../../../../../../../types';
+export async function POST(_:Request,{params}:{params:{provider:string}}){if(!['openai','anthropic','gemini'].includes(params.provider))return NextResponse.json({error:'PROVIDER_NOT_SUPPORTED'},{status:400});const result=await checkProviderCLI(params.provider as ProviderId);return NextResponse.json(result)}

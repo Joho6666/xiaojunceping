@@ -1,0 +1,7 @@
+.next/
+node_modules/
+.env*.local
+.agentscope/
+*.log
+*.tsbuildinfo
+outputs/

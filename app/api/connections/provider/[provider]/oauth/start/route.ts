@@ -1,0 +1,2 @@
+import { NextResponse } from 'next/server'; import { oauthUnavailable } from '../../../../../../../services/connectionService'; import { ProviderId } from '../../../../../../../types';
+export async function GET(_:Request,{params}:{params:{provider:string}}){if(!['openai','anthropic','gemini'].includes(params.provider))return NextResponse.json({error:'PROVIDER_NOT_SUPPORTED'},{status:400});return NextResponse.json(oauthUnavailable(params.provider as ProviderId),{status:501})}

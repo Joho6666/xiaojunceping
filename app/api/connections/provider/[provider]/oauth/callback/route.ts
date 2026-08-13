@@ -1,0 +1,1 @@
+import { NextResponse } from 'next/server'; export async function GET(){return NextResponse.json({status:'unavailable',code:'OAUTH_NOT_CONFIGURED',message:'当前 Provider 未配置 OAuth Client。'},{status:501})}
