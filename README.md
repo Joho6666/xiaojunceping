@@ -35,3 +35,17 @@ npm run build
 ## 当前边界
 
 Provider Connection 当前是本地单用户 MVP，连接数据和 API Key 只存进程内；正式部署前需要接入 Prisma + Supabase PostgreSQL，并使用 `DATABASE_ENCRYPTION_KEY` 加密持久化 OAuth Refresh Token 和 API Key。
+# AgentScope
+
+AgentScope 当前包含本地 AI 生态知识库：服务端使用 SQLite 保存已发布的模型、Agent、工具、Skill、MCP 和 GitHub 条目。评估时会先提取需求画像，再执行知识库检索、规则过滤、实时 GitHub 搜索和 Provider 解释。
+
+## 知识库
+
+- 管理页面：`/settings/knowledge`
+- 手动同步：`npm run knowledge:sync`
+- 测试：`npm run test:knowledge`
+- 数据文件：`.agentscope/knowledge.sqlite`，已被 Git 忽略
+- 官方源自动发布，社区来源应经过确认后再纳入推荐
+- 每次评估允许实时搜索，但报告会区分知识库快照、实时结果和 AI 推测
+
+本地每天自动更新可使用 Windows 任务计划程序执行 `npm run knowledge:sync`。知识库不保存 API Key、OAuth Token 或 CLI 凭据，也不宣称覆盖全部市场工具。

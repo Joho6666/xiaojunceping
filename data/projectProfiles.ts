@@ -29,6 +29,10 @@ export function profileFor(project: Pick<Project, "idea" | "kind">) {
         "saleor/saleor",
         "vercel/commerce",
         "vendure-ecommerce/vendure",
+        "bagisto/bagisto",
+        "shopware/shopware",
+        "spree/spree",
+        "Sylius/Sylius",
       ],
       workflow: [
         "商品与库存建模",

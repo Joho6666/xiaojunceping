@@ -112,7 +112,8 @@ export function Github({
   onOpen: (x: GithubProjectRecommendation) => void;
 }) {
   const [added, setAdded] = useState<string[]>([]);
-  const live = r.sources.some((x) => x.id === "github-live");
+  const githubSource = r.sources.find((x) => x.id === "github-live" || x.id === "github-codex-search");
+  const live = githubSource?.type === "GitHub API" || githubSource?.type === "GitHub API + Codex 搜索意图";
   const projects = filterGithubProjects(
     { kind: r.projectKind, idea: r.projectIdea || "" },
     r.githubProjects,
@@ -124,7 +125,7 @@ export function Github({
       subtitle={
         live
           ? "已通过 GitHub API 校验，展示真实仓库、更新时间和当前 Star。"
-          : "当前为示例快照；点击“重新分析”后会查询实时 GitHub。"
+          : "当前使用本地知识库快照；重新分析时会先由模型生成搜索意图，再查询并校验 GitHub。"
       }
       collapsible
     >
@@ -697,10 +698,28 @@ export function Sources({ r }: { r: ProjectReport }) {
   return (
     <ReportSection id="sources" title="分析依据与信息来源" collapsible>
       <p className="muted">
-        {r.sources.some((x) => x.id === "deepseek")
-          ? "本报告的核心结论由已连接 Provider 实时生成；GitHub 项目来自实时公共 API。未标注实时来源的模型、产品和成本内容仅作方案参考，执行前需要复核。"
-          : "当前是示例报告，不代表已经完成真实 AI 评估。连接 Provider 后点击“重新分析”，系统才会生成实时结论和 GitHub 结果。"}
+        {r.generationMode === "live"
+          ? `本报告由 ${r.provider || "已连接 Provider"} / ${r.model || "已选模型"} 基于当前项目实时生成。GitHub、产品和工具只展示已核验或明确标注为知识库快照的来源；项目实施 Token 与本次评估消耗分开。`
+          : r.generationMode === "knowledge-only"
+            ? "本报告仅基于本地知识库和规则生成，未完成实时 AI 或联网核验；涉及版本、价格和可用性的信息请先打开来源复核。"
+            : "当前是示例报告，不代表已经完成真实 AI 评估。连接 Provider 后点击“重新分析”，系统才会生成实时结论和核验后的来源。"}
       </p>
+      {r.knowledge && (
+        <div className="source-list">
+          <div>
+            <span className="mono tiny">知识库快照</span>
+            <strong>{r.knowledge.itemCount} 条已发布条目 · 已过滤 {r.knowledge.filteredCount} 条</strong>
+            <small>快照：{r.knowledge.snapshotAt || "未知"} · 实时检索：{r.knowledge.liveSearchAt || "未执行"}</small>
+            <small>{r.knowledge.coverage}</small>
+            {r.knowledge.browserSearch && (
+              <small>
+                浏览器搜索：{r.knowledge.browserSearch.resultCount} 条结果 · {r.knowledge.browserSearch.searchedAt || "未执行"}
+                {r.knowledge.browserSearch.error ? ` · ${r.knowledge.browserSearch.error}` : ""}
+              </small>
+            )}
+          </div>
+        </div>
+      )}
       <div className="source-list">
         {r.sources.map((x) => (
           <div key={x.id}>

@@ -9,9 +9,16 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:reports",
-    "test:reports": "tsx scripts/validateReports.ts"
+    "test:reports": "tsx scripts/validateReports.ts",
+    "test:knowledge": "tsx scripts/testKnowledge.ts",
+    "test:customization": "tsx scripts/testCustomization.ts",
+    "test:prompt": "tsx scripts/testPrompt.ts",
+    "test:discovery": "tsx scripts/testDiscovery.ts",
+    "knowledge:sync": "tsx scripts/syncKnowledge.ts"
   },
   "dependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^13.0.3",
     "next": "^14.2.35",
     "react": "18.3.1",
     "react-dom": "18.3.1"

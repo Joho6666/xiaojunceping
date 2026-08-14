@@ -111,7 +111,7 @@ export default function Interview() {
   };
   const save = () => {
     const valid = Array.isArray(value)
-      ? value.length > 0
+      ? value.length > 0 && (!value.includes("自定义") || value.some((item) => item.startsWith("自定义：") && item.slice(4).trim()))
       : Boolean(String(value).trim());
     if (!valid) {
       setNotice("请先完成当前问题。");
@@ -255,6 +255,15 @@ function QuestionInput({
   select: (v: string) => void;
   move: (i: number, d: number) => void;
 }) {
+  const customValues = Array.isArray(value)
+    ? value.filter((item) => item.startsWith("自定义："))
+    : [];
+  const customText = customValues[0]?.slice("自定义：".length) || "";
+  const hasCustom = customValues.length > 0 || (Array.isArray(value) && value.includes("自定义"));
+  const updateCustom = (text: string) => {
+    const current = Array.isArray(value) ? value.filter((item) => item !== "自定义" && !item.startsWith("自定义：")) : [];
+    setValue([...current, `自定义：${text}`]);
+  };
   return (
     <>
       {["text", "textarea"].includes(question.type) &&
@@ -304,7 +313,9 @@ function QuestionInput({
         <div className="options">
           {question.options?.map((option) => {
             const selected = Array.isArray(value)
-              ? value.includes(option.label)
+              ? option.label === "自定义"
+                ? hasCustom
+                : value.includes(option.label)
               : value === option.label;
             return (
               <button
@@ -320,6 +331,16 @@ function QuestionInput({
               </button>
             );
           })}
+          {question.id === "deliverables" && hasCustom && (
+            <input
+              className="custom-answer-input"
+              value={customText}
+              onChange={(event) => updateCustom(event.target.value)}
+              placeholder="例如：服装品牌电商网站、内部管理后台…"
+              aria-label="填写自定义项目名称或交付物"
+              autoFocus
+            />
+          )}
         </div>
       )}
     </>

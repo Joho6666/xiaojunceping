@@ -39,7 +39,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       { error: "CONNECTION_NOT_FOUND" },
       { status: 404 },
     );
-  if (connection.provider !== "deepseek")
+  if (connection.provider !== "deepseek" && connection.provider !== "custom")
     return NextResponse.json({
       ok: connection.status === "connected",
       status: connection.status,
@@ -53,7 +53,9 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     );
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
-  const providerName = connection.baseUrl?.includes("volces.com")
+  const providerName = connection.provider === "custom"
+    ? connection.displayName
+    : connection.baseUrl?.includes("volces.com")
     ? "火山方舟"
     : "DeepSeek";
   try {
@@ -66,7 +68,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
           Authorization: `Bearer ${secret}`,
         },
         body: JSON.stringify({
-          model: connection.model || "deepseek-chat",
+          model: connection.model || "deepseek-v4-flash",
           temperature: 0,
           max_tokens: 8,
           messages: [{ role: "user", content: "仅回复 OK" }],
@@ -87,7 +89,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         {
           ok: false,
           status: "error",
-          provider: "deepseek",
+          provider: connection.provider,
           error: "PROVIDER_CONNECTION_FAILED",
           message: providerErrorMessage(
             response.status,
@@ -102,7 +104,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({
       ok: true,
       status: "connected",
-      provider: "deepseek",
+      provider: connection.provider,
       message: `${providerName} 连接测试成功`,
     });
   } catch (error) {
@@ -115,7 +117,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         message:
           error instanceof Error && error.name === "AbortError"
             ? "连接超时"
-            : "无法连接 DeepSeek",
+            : `无法连接 ${providerName}`,
       },
       { status: 502 },
     );
@@ -123,3 +125,4 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     clearTimeout(timer);
   }
 }
+

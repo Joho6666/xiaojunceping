@@ -8,6 +8,7 @@ import {
   ProviderId,
 } from "../types";
 import { checkCLI } from "../ai/cli/cliHealthCheck";
+import { codexCliAdapter, listCodexModels } from "../ai/cli/codexCliAdapter";
 
 const connections = new Map<string, ProviderConnection>();
 const secrets = new Map<string, string>();
@@ -37,8 +38,13 @@ const defaults: Record<
   },
   deepseek: {
     baseUrl: "https://api.deepseek.com/v1",
-    model: "deepseek-chat",
+    model: "deepseek-v4-flash",
     label: "DeepSeek API",
+  },
+  custom: {
+    baseUrl: "",
+    model: "",
+    label: "自定义 OpenAI-compatible API",
   },
 };
 const ARK_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
@@ -163,8 +169,18 @@ restore();
 export function listConnections() {
   return Array.from(connections.values());
 }
-export async function checkProviderCLI(provider: ProviderId) {
-  const status = await checkCLI(provider);
+export async function checkProviderCLI(provider: ProviderId, model?: string) {
+  const status = provider === "openai" ? await codexCliAdapter.healthCheck() : await checkCLI(provider);
+  if (provider === "openai" && status.available && status.authenticated && model?.trim()) {
+    try {
+      const models = await listCodexModels();
+      if (!models.some((item) => item.id === model.trim())) {
+        return { connection: null, health: { ...status, available: false, message: `模型 ${model.trim()} 不在当前 Codex CLI 可用列表中，请重新选择。`, availableModels: models } };
+      }
+    } catch {
+      return { connection: null, health: { ...status, available: false, message: "无法读取 Codex CLI 模型列表，请稍后重试。" } };
+    }
+  }
   const existing = listConnections().find(
     (x) => x.provider === provider && x.mode === "cli",
   );
@@ -174,7 +190,8 @@ export async function checkProviderCLI(provider: ProviderId) {
       provider,
       mode: "cli" as ConnectionMode,
       status: "connected" as ConnectionStatus,
-      displayName: `${provider} CLI`,
+      displayName: provider === "openai" ? "Codex CLI · ChatGPT OAuth" : `${provider} CLI`,
+      model: model?.trim() || undefined,
       lastCheckedAt: new Date().toISOString(),
     };
     const updated = {
@@ -182,6 +199,7 @@ export async function checkProviderCLI(provider: ProviderId) {
       status: "connected" as ConnectionStatus,
       lastCheckedAt: new Date().toISOString(),
       errorCode: undefined,
+      model: model?.trim() || connection.model,
     };
     connections.set(updated.id, updated);
     return { connection: updated, health: status };
@@ -198,6 +216,10 @@ export async function checkProviderCLI(provider: ProviderId) {
     health: status,
   };
 }
+
+export async function getCodexModelOptions() {
+  return listCodexModels();
+}
 export function addApiKey(
   provider: ProviderId,
   apiKey: string,
@@ -205,6 +227,7 @@ export function addApiKey(
   model?: string,
 ) {
   if (!apiKey.trim()) throw new Error("API_KEY_REQUIRED");
+  if (provider === "custom" && !baseUrl?.trim()) throw new Error("BASE_URL_REQUIRED");
   if (!looksLikeApiKey(provider, apiKey))
     throw new Error("API_KEY_INVALID_FORMAT");
   for (const item of listConnections().filter(
@@ -263,3 +286,4 @@ export function oauthUnavailable(provider: ProviderId) {
     message: `${provider} 当前未配置官方 OAuth Client，请使用本地 CLI 或 API Key。`,
   };
 }
+

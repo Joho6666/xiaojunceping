@@ -41,6 +41,8 @@ const quickStatuses: AnalysisJob["status"][] = [
   "understanding",
   "researching",
   "matching",
+  "matching",
+  "estimating",
   "estimating",
   "generating",
 ];
@@ -50,8 +52,24 @@ export default function Analysis() {
     router = useRouter(),
     params = useParams();
   const [error, setError] = useState("");
+  const [providerLabel, setProviderLabel] = useState("已连接的 AI Provider");
+  const [modelLabel, setModelLabel] = useState("按已连接配置执行");
+  const [discovery, setDiscovery] = useState<{ github: number; ecosystem: number; categories: string[]; browser: number; browserError?: string; queries: string[] } | null>(null);
   const mode = app.project?.evaluationMode || "expert";
   const steps = mode === "quick" ? quickAnalysisSteps : analysisSteps;
+  useEffect(() => {
+    fetch("/api/connections")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const connections = data?.connections || [];
+        const selected = connections.find((item: { id?: string; provider?: string; mode?: string; status?: string }) => item.id === app.project?.selectedConnectionId && item.status === "connected") || connections.find((item: { provider?: string; mode?: string; status?: string }) => item.provider === "openai" && item.mode === "cli" && item.status === "connected") || connections.find((item: { status?: string }) => item.status === "connected");
+        if (selected) {
+          setProviderLabel(selected.provider === "openai" ? "Codex CLI" : selected.displayName || selected.provider);
+          setModelLabel(selected.model || "Provider 默认模型");
+        }
+      })
+      .catch(() => undefined);
+  }, [app.project?.selectedConnectionId]);
   useEffect(() => {
     if (!app.hydrated || !app.project) return;
     let cancelled = false;
@@ -73,21 +91,67 @@ export default function Analysis() {
             ...job,
             status: "generating",
             progress: 92,
-            currentStep: "正在调用 DeepSeek 与 GitHub",
+            currentStep: "正在检索 GitHub、Skill、MCP、Plugin 与参考项目",
             stepIndex: job.stepIndex,
           });
-          const response = await fetch(`/api/projects/${project.id}/analyze`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ project, answers: app.answers }),
-          });
-          const data = (await response.json()) as {
-            report?: typeof app.report;
-            error?: string;
-            message?: string;
-          };
-          if (!response.ok || !data.report) {
-            clearInterval(timer);
+          try {
+            const discoveryResponse = await fetch(`/api/projects/${project.id}/discover`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ project, answers: app.answers }),
+            });
+            if (discoveryResponse.ok) {
+              const found = await discoveryResponse.json() as { githubProjects?: unknown[]; ecosystem?: Array<{ category?: string }>; knowledge?: { browserSearch?: { resultCount?: number; error?: string; queries?: string[] } } };
+              setDiscovery({
+                github: found.githubProjects?.length || 0,
+                ecosystem: found.ecosystem?.length || 0,
+                categories: Array.from(new Set((found.ecosystem || []).map((item) => item.category).filter(Boolean))) as string[],
+                browser: found.knowledge?.browserSearch?.resultCount || 0,
+                browserError: found.knowledge?.browserSearch?.error,
+                queries: found.knowledge?.browserSearch?.queries || [],
+              });
+            }
+          } catch {
+            // The analysis API performs the same fallback discovery before generating the report.
+          }
+          try {
+            const response = await fetch(`/api/projects/${project.id}/analyze`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ project, answers: app.answers }),
+            });
+            const contentType = response.headers.get("content-type") || "";
+            const data = contentType.includes("application/json")
+              ? (await response.json()) as { report?: typeof app.report; message?: string; error?: string }
+              : { message: `服务返回了非 JSON 响应（HTTP ${response.status}），请检查本地服务日志。` };
+            if (!response.ok || !data.report) {
+              clearInterval(timer);
+              app.setAnalysisJob({
+                ...job,
+                status: "failed",
+                progress: 92,
+                currentStep: "分析失败",
+                stepIndex: job.stepIndex,
+              });
+              setError(
+                data.message || data.error || "真实 AI 评估失败，请检查当前 AI Provider 连接。",
+              );
+              return;
+            }
+            if (cancelled) return;
+            app.setReport(data.report);
+            app.setAnalysisJob({
+              ...job,
+              status: "completed",
+              progress: 100,
+              currentStep: "分析完成",
+              stepIndex: steps.length,
+            });
+            setTimeout(() => {
+              if (!cancelled) router.push(`/project/${params.id}/report`);
+            }, 350);
+          } catch (requestError) {
+            if (cancelled) return;
             app.setAnalysisJob({
               ...job,
               status: "failed",
@@ -95,33 +159,18 @@ export default function Analysis() {
               currentStep: "分析失败",
               stepIndex: job.stepIndex,
             });
-            setError(
-              data.message || "真实 AI 评估失败，请检查 DeepSeek 连接。",
-            );
-            return;
+            setError(requestError instanceof Error ? requestError.message : "分析请求失败，请检查本地服务是否仍在运行。");
           }
-          if (cancelled) return;
-          app.setReport(data.report);
-          app.setAnalysisJob({
-            ...job,
-            status: "completed",
-            progress: 100,
-            currentStep: "分析完成",
-            stepIndex: steps.length,
-          });
-          setTimeout(() => {
-            if (!cancelled) router.push(`/project/${params.id}/report`);
-          }, 350);
           return;
         }
         const status: AnalysisJob["status"] =
           mode === "quick"
             ? quickStatuses[next] || "generating"
-            : next < 6
+            : next < 3
               ? "researching"
-              : next < 10
+              : next < 7
                 ? "matching"
-                : next < 13
+                : next < 9
                   ? "estimating"
                   : "generating";
         job = {
@@ -158,7 +207,7 @@ export default function Analysis() {
     );
   if (!app.project) return <div className="content">未找到项目。</div>;
   const job = app.analysisJob || newJob(mode),
-    notes = discoveries[app.project.kind];
+    notes = discoveries[app.project.kind] || discoveries.general;
   return (
     <main>
       <div className="analysis-layout">
@@ -191,8 +240,8 @@ export default function Analysis() {
             <p className="muted">
               {error ||
                 (mode === "quick"
-                  ? "正在调用 DeepSeek、GitHub 搜索并估算最小可行工程计划。"
-                  : "正在调用 DeepSeek 比较现有方案、工具能力、Agent、模型与执行路线。")}
+                  ? `正在调用 ${providerLabel}、GitHub 搜索并估算最小可行工程计划。`
+                  : `正在调用 ${providerLabel} 比较现有方案、工具能力、Agent、模型与执行路线。`)}
             </p>
             {error && (
               <>
@@ -200,7 +249,7 @@ export default function Analysis() {
                   className="btn primary"
                   onClick={() => router.push("/settings/ai")}
                 >
-                  去配置 DeepSeek
+                  去配置 AI Provider
                 </button>
                 <button className="btn" onClick={() => location.reload()}>
                   重新评估
@@ -229,7 +278,23 @@ export default function Analysis() {
                 ))}
               </div>
               <div>
-                {notes.slice(0, mode === "quick" ? 2 : 3).map((note, i) => (
+                {discovery ? (
+                  <>
+                    <div className="card analysis-note fade-in">
+                      <h3>已找到</h3>
+                      <p>{discovery.github} 个 GitHub 项目 · {discovery.ecosystem} 个生态候选</p>
+                    </div>
+                    <div className="card analysis-note fade-in">
+                      <h3>正在匹配</h3>
+                      <p>{discovery.categories.length ? discovery.categories.join("、") : "Skill、MCP、Plugin 与 Agent"}</p>
+                    </div>
+                    <div className="card analysis-note fade-in">
+                      <h3>浏览器搜索</h3>
+                      <p>{discovery.browser ? `已检索 ${discovery.browser} 条网页结果` : discovery.browserError || "未配置或未执行浏览器搜索"}</p>
+                      {discovery.queries.length > 0 && <small className="muted">查询：{discovery.queries.slice(0, 2).join("；")}</small>}
+                    </div>
+                  </>
+                ) : notes.slice(0, mode === "quick" ? 2 : 3).map((note, i) => (
                   <div className="card analysis-note fade-in" key={note}>
                     <h3>{i === 0 ? "已找到" : "正在比较"}</h3>
                     <p>{note}</p>
@@ -239,9 +304,14 @@ export default function Analysis() {
                   <h3>当前任务</h3>
                   <strong>{job.currentStep}</strong>
                   <p className="muted">
-                    当前使用已连接的 DeepSeek 与 GitHub
-                    公共搜索；没有连接时不会生成假报告。
+                    {discovery ? "已完成候选检索，正在把来源、匹配理由和限制写入报告。" : "将依次检索知识库、GitHub、Skill、MCP、Plugin 和参考项目；没有连接时不会生成假报告。"}
                   </p>
+                </div>
+                <div className="card analysis-note">
+                  <h3>项目实施预测</h3>
+                  <strong>Token：约 2 万–8 万</strong>
+                  <p>时间：约 3–7 天 · 执行模型：{modelLabel}</p>
+                  <small className="muted">这是项目实施预测，不是本次测评 API 消耗；最终以报告中的范围和置信度为准。</small>
                 </div>
               </div>
             </div>

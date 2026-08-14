@@ -3,18 +3,32 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Footer } from "../components/Footer";
 import { useApp } from "../components/AppProvider";
-import { EvaluationMode } from "../types";
+import { EvaluationMode, ProviderConnection } from "../types";
 export default function Home() {
   const [idea, setIdea] = useState("");
   const [mode, setMode] = useState<EvaluationMode>("quick");
+  const [connections, setConnections] = useState<ProviderConnection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState("");
   const router = useRouter();
   const app = useApp();
   useEffect(() => {
     if (app.hydrated && app.project) setMode(app.project.evaluationMode);
   }, [app.hydrated, app.project]);
+  useEffect(() => {
+    if (!app.hydrated) return;
+    fetch("/api/connections")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const available = (data?.connections || []).filter((item: ProviderConnection) => item.status === "connected");
+        setConnections(available);
+        if (!selectedConnectionId && available[0]) setSelectedConnectionId(available[0].id);
+      })
+      .catch(() => undefined);
+  }, [app.hydrated, selectedConnectionId]);
   const start = () => {
     if (!idea.trim()) return;
-    router.push(`/project/${app.createProject(idea.trim(), mode)}/interview`);
+    const selected = connections.find((item) => item.id === selectedConnectionId);
+    router.push(`/project/${app.createProject(idea.trim(), mode, selected ? { id: selected.id, model: selected.model } : undefined)}/interview`);
   };
   return (
     <main>
@@ -34,11 +48,34 @@ export default function Home() {
             <label className="field-label">
               <span style={{ color: "#2458c7" }}>◆</span> 描述你的项目
             </label>
-            <textarea
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              placeholder="例如：我想做一个可以自动把长视频剪成 TikTok 短视频的 AI Agent……"
-            />
+            <div className="idea-input-shell">
+              <textarea
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                placeholder="例如：我想做一个可以自动把长视频剪成 TikTok 短视频的 AI Agent……"
+              />
+              <div className="idea-input-toolbar">
+                <span className="idea-model-icon">◆</span>
+                <span className="idea-model-label">模型</span>
+                {connections.length ? (
+                  <select
+                    className="idea-model-select"
+                    aria-label="选择本次评估使用的模型"
+                    value={selectedConnectionId}
+                    onChange={(e) => setSelectedConnectionId(e.target.value)}
+                  >
+                    {connections.map((connection) => (
+                      <option value={connection.id} key={connection.id}>
+                        {connection.displayName} · {connection.model || "Provider 默认模型"} · {connection.mode === "cli" ? "本地 CLI" : "API Key"}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <a className="idea-model-empty" href="/settings/ai">去绑定模型</a>
+                )}
+                <span className="idea-model-chevron">⌄</span>
+              </div>
+            </div>
             <div className="mode-heading">
               <span>评估方式</span>
               <small>首次使用默认快速模式</small>
