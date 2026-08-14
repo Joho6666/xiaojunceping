@@ -25,9 +25,13 @@ if (records.has("browser")) {
     if (row) records.set("browser", { ...row, status: "error", errorCode: "BROWSER_RUNTIME_NOT_INSTALLED", lastCheckedAt: new Date().toISOString() });
   }
 }
-export function listCapabilities(): CapabilityConnection[] { return Array.from(records.values()).map(({ secret: _secret, ...publicRecord }) => publicRecord); }
+export function listCapabilities(): CapabilityConnection[] {
+  // Never return credentials or configured MCP URLs to the browser. The URL may
+  // contain a query-string token (for example a hosted MCP API key).
+  return Array.from(records.values()).map(({ secret: _secret, endpoint: _endpoint, ...publicRecord }) => publicRecord);
+}
 export function getCapabilitySecret(id: CapabilityId) { return records.get(id)?.secret; }
-export function saveCapability(id: CapabilityId, secret?: string, endpoint?: string) { const definition = definitions[id]; const row: CapabilityRecord = { id, name: definition.name, mode: definition.mode, status: "unavailable", secret: secret?.trim() || undefined, endpoint: endpoint?.trim() || undefined, lastCheckedAt: new Date().toISOString() }; records.set(id, row); persist(); return row; }
+export function saveCapability(id: CapabilityId, secret?: string, endpoint?: string) { const definition = definitions[id]; if (!definition) return null; const row: CapabilityRecord = { id, name: definition.name, mode: definition.mode, status: "unavailable", secret: secret?.trim() || undefined, endpoint: endpoint?.trim() || undefined, lastCheckedAt: new Date().toISOString() }; records.set(id, row); persist(); return row; }
 export function setCapabilityStatus(id: CapabilityId, status: ConnectionStatus, errorCode?: string) { const row = records.get(id); if (!row) return null; const updated = { ...row, status, errorCode, lastCheckedAt: new Date().toISOString() }; records.set(id, updated); persist(); return updated; }
 export function removeCapability(id: CapabilityId) { records.delete(id); persist(); }
 export function capabilityDefinition(id: CapabilityId) { return definitions[id]; }
