@@ -2,6 +2,32 @@
 
 AgentScope 是一个面向真实项目的 AI 方案评估与执行规划平台：输入项目描述，选择 Quick / Expert 模式和已连接的 Provider / 模型，系统会生成项目画像，检索本地 AI 生态知识库，补充 GitHub 与官方来源，过滤不适配项，并输出可执行的 Agent 工作流、成本估算和项目专属 Prompt。
 
+它解决的是“这个项目应该用什么模型、Agent、Skill、MCP 和开源项目”的落地问题，而不是只生成一段泛泛的 AI 建议。报告会把已核验来源、知识库快照、实时搜索结果、推测建议和人工确认节点分开显示。
+
+## 产品预览
+
+下面是 GitHub 页面中的项目说明预览。完整产品包含首页项目输入、AI 配置、知识库、本机能力扫描、历史记录、分析进度和 Quick / Expert 报告。
+
+![AgentScope GitHub README 与产品说明预览](docs/images/github-readme-preview.png)
+
+## 一次评估会做什么
+
+```text
+项目描述 + 访谈答案 + 已选模型
+        ↓
+项目画像与需求标签
+        ↓
+本地知识库检索（模型 / Agent / Skill / MCP / 工具 / GitHub）
+        ↓
+实时来源补充与链接核验
+        ↓
+规则过滤、相关性排序与能力匹配
+        ↓
+项目专属报告、Agent 顺序、Prompt 和 AGENTS.md
+```
+
+报告不是固定模板：不同项目会得到不同的策略、参考项目、工具链、Agent 队列、模型路由、风险、时间 / 实施 Token 预测和执行 Prompt。
+
 ## 能力概览
 
 - Quick / Expert 双模式评估
