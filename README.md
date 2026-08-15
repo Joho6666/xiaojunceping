@@ -6,9 +6,79 @@ AgentScope 是一个面向真实项目的 AI 方案评估与执行规划平台�
 
 ## 产品预览
 
-下面是 GitHub 页面中的项目说明预览。完整产品包含首页项目输入、AI 配置、知识库、本机能力扫描、历史记录、分析进度和 Quick / Expert 报告。
+下面的截图来自 AgentScope 的实际界面，按“输入项目 → 配置能力 → 分析 → 生成执行方案”的使用路径展示。截图中的项目内容是演示数据，Provider、模型、成本与外部来源以用户实际配置和最新核验结果为准。
 
-![AgentScope GitHub README 与产品说明预览](docs/images/github-readme-preview.png)
+### 1. 项目输入与模型选择
+
+用户先描述目标，再选择 Quick / Expert 模式和本次评估使用的 Provider / 模型。模型选择会绑定到当前项目，不会在分析过程中静默切换。
+
+![首页项目输入与模型选择](docs/images/product/screen-14.png)
+
+### 2. AI Provider 与研究能力配置
+
+AI 配置页支持 Codex CLI、Claude CLI、Gemini CLI、DeepSeek 和自定义 OpenAI-compatible Provider；研究能力页可配置浏览器搜索、GitHub、浏览器自动化、MCP、文件访问和终端执行。
+
+![AI Provider 配置](docs/images/product/screen-15.png)
+
+![搜索、GitHub、浏览器自动化与 MCP 配置](docs/images/product/screen-16.png)
+
+### 3. 知识库与本机能力
+
+知识库用于沉淀模型、Agent、Skill、MCP、Plugin、工具和参考项目。用户可以同步公开来源、扫描本机 Skill / MCP，或导入自己的 JSON；敏感凭据不会被扫描或写入知识库。
+
+![知识库管理与本机能力扫描](docs/images/product/screen-17.png)
+
+### 4. 历史记录
+
+历史页面保留过去的项目描述、访谈进度、Provider / 模型、分析状态和报告入口。旧报告会标记生成状态，输入或知识库变化后需要重新分析。
+
+![历史记录](docs/images/product/screen-18.png)
+
+### 5. 项目结论与实施策略
+
+报告首先给出项目专属结论、可行性评分和推荐策略，再展示时间、实施 Token、AI / API 成本与人工投入。这里的 Token 是项目实施预测，不是本次评估调用消耗。
+
+![项目结论](docs/images/product/screen-01.png)
+
+![推荐实施策略](docs/images/product/screen-02.png)
+
+![Quick / Expert 报告概览](docs/images/product/screen-13.png)
+
+### 6. GitHub 项目与类似产品
+
+系统优先查询本地知识库，再补充 GitHub 和官方来源，并对仓库链接、更新时间、Star、License 等信息进行核验。类似产品用于理解用户流程和边界，不等于建议直接复制产品或代码。
+
+![已核验 GitHub 开源项目参考](docs/images/product/screen-03.png)
+
+![类似产品与竞品参考](docs/images/product/screen-04.png)
+
+### 7. Agent、模型与开发工具
+
+推荐结果会按当前项目生成 Agent 队列、模型角色路由和工具链，并解释每项能力为什么匹配、哪些条件仍需人工确认。不同项目会得到不同的 Agent 顺序和模型组合。
+
+![项目专属 Agent 推荐](docs/images/product/screen-05.png)
+
+![模型推荐与比较](docs/images/product/screen-06.png)
+
+![开发工具推荐](docs/images/product/screen-07.png)
+
+### 8. 能力矩阵、Workflow、估算与风险
+
+报告会把 API、CLI、MCP、SDK、浏览器和 Computer Use 能力放入矩阵，进一步展开 Agent Workflow、架构节点、自动化率、时间 / Token / 成本估算，以及风险和人工确认点。
+
+![接口能力矩阵与技术栈](docs/images/product/screen-08.png)
+
+![Agent 执行 Workflow](docs/images/product/screen-09.png)
+
+![Agent 架构与项目估算](docs/images/product/screen-10.png)
+
+![自动化率与风险分析](docs/images/product/screen-11.png)
+
+### 9. 项目专属 Prompt 与 AGENTS.md
+
+Prompt Generator 支持 Codex、Claude Code、Cursor 和 OpenCode 模板，并可切换 Master Prompt、单个 Agent Prompt 和 `AGENTS.md`。生成内容来自当前项目的目标、技术栈、核验来源、Agent 顺序、工具、验收标准和风险，而不是固定示例。
+
+![Prompt Generator 与 AGENTS.md](docs/images/product/screen-12.png)
 
 ## 一次评估会做什么
 
