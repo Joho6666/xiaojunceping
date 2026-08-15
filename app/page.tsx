@@ -1,9 +1,44 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Footer } from "../components/Footer";
 import { useApp } from "../components/AppProvider";
 import { EvaluationMode, ProviderConnection } from "../types";
+
+const productHighlights = [
+  {
+    image: "/images/product/screen-01.png",
+    title: "项目结论与可行性判断",
+    description: "从目标、约束和访谈答案出发，给出项目专属结论、评分、风险和下一步建议。",
+  },
+  {
+    image: "/images/product/screen-03.png",
+    title: "GitHub 与类似产品参考",
+    description: "检索并核验真实开源项目、竞品和产品来源，说明可以借鉴什么，以及哪些内容不应照搬。",
+  },
+  {
+    image: "/images/product/screen-05.png",
+    title: "Agent、模型与工具匹配",
+    description: "根据项目目标生成 Agent 队列、模型路由、工具链和执行顺序，而不是套用固定推荐。",
+  },
+  {
+    image: "/images/product/screen-09.png",
+    title: "可执行的 Agent Workflow",
+    description: "把研究、实现、测试、审查和交付拆成有输入、有输出、有验收标准的阶段。",
+  },
+  {
+    image: "/images/product/screen-12.png",
+    title: "项目专属 Prompt 与 AGENTS.md",
+    description: "一键生成适配 Codex、Claude Code、Cursor 和 OpenCode 的执行 Prompt 与工作流文件。",
+  },
+  {
+    image: "/images/product/screen-17.png",
+    title: "持续更新的 AI 生态知识库",
+    description: "沉淀模型、Agent、Skill、MCP、Plugin 和本机能力，支持同步公开来源、扫描和导入。",
+  },
+];
+
 export default function Home() {
   const [idea, setIdea] = useState("");
   const [mode, setMode] = useState<EvaluationMode>("quick");
@@ -162,6 +197,35 @@ export default function Home() {
                   : "时间 · Token · 成本 · 风险"}
               </p>
             </div>
+          </div>
+        </section>
+        <section className="product-preview-section fade-in" aria-labelledby="product-preview-title">
+          <div className="product-preview-intro">
+            <div>
+              <div className="eyebrow">PRODUCT WORKSPACE</div>
+              <h2 id="product-preview-title">从项目想法，到一套能执行的方案</h2>
+              <p>
+                AgentScope 会把项目描述、已选模型、知识库和实时来源连接起来，输出可解释、可复用、可交付的评估结果。
+              </p>
+            </div>
+            <a className="btn" href="/settings/knowledge">查看知识库</a>
+          </div>
+          <div className="product-preview-grid">
+            {productHighlights.map((item) => (
+              <article className="product-preview-card" key={item.title}>
+                <div className="product-preview-image-wrap">
+                  <Image src={item.image} alt={item.title} width={800} height={450} />
+                </div>
+                <div className="product-preview-copy">
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="product-preview-note">
+            <strong>一次评估的完整链路</strong>
+            <span>项目输入 → 需求画像 → 知识库检索 → 来源核验 → Agent / 模型匹配 → 报告与 Prompt</span>
           </div>
         </section>
         <Footer />
