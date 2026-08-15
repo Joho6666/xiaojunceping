@@ -1,6 +1,7 @@
 import { AnswerValue, ConnectionMode, GithubProjectRecommendation, Project, ProjectReport } from "../types";
 import { buildMockReport } from "../data/reportCatalog";
 import {
+  DeepSeekUsage,
   generateDeepSeekEvaluation,
   generateDeepSeekSearchPlan,
 } from "./deepseekService";
@@ -18,6 +19,18 @@ import { applyAgentPlanToReport, buildAgentPlan, buildInputFingerprint, buildPro
 
 function str(value: unknown, fallback: string) {
   return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+/** 搜索计划失败时的默认查询：基于项目描述构造，保证 GitHub 搜索仍有输入。 */
+function defaultSearchPlanQueries(project: Project): string[] {
+  const idea = (project.idea || "").trim().slice(0, 60);
+  const queries: string[] = [];
+  if (idea) {
+    queries.push(`${idea} 开源`);
+    queries.push(`${idea} github`);
+  }
+  queries.push(`${project.kind} 开发框架`);
+  return queries.slice(0, 4);
 }
 function arr(value: unknown, fallback: string[]) {
   return Array.isArray(value)
@@ -73,11 +86,23 @@ export async function analyzeWithDeepSeek(
   answers: Record<string, AnswerValue>,
   connection: { baseUrl?: string; model?: string; secret?: string; provider?: string; mode?: ConnectionMode },
 ): Promise<ProjectReport> {
-  const searchPlan = await generateDeepSeekSearchPlan(
-    project,
-    answers,
-    connection,
-  );
+  // 搜索计划失败不阻断评估：降级为基于项目描述的默认查询，保证报告可生成。
+  let searchPlan: { queries: string[]; focus: string[]; usage: DeepSeekUsage };
+  try {
+    searchPlan = await generateDeepSeekSearchPlan(
+      project,
+      answers,
+      connection as Parameters<typeof generateDeepSeekSearchPlan>[2],
+    );
+  } catch (error) {
+    const fallbackQueries = defaultSearchPlanQueries(project);
+    searchPlan = {
+      queries: fallbackQueries,
+      focus: [project.idea],
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    };
+    console.warn("[analyzeWithDeepSeek] 搜索计划降级为默认查询:", String(error));
+  }
   const githubProjects = await searchGithubProjects(
     project,
     searchPlan.queries,
