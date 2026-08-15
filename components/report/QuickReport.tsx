@@ -174,7 +174,7 @@ export function QuickReport({
           {r.risks.map((risk) => (
             <div className="card" key={risk.title}>
               <span
-                className={`status-chip ${risk.level.includes("高") ? "bad" : "warn"}`}
+                className={`status-chip ${typeof risk.level === "string" && risk.level.includes("高") ? "bad" : "warn"}`}
               >
                 {risk.level}
               </span>

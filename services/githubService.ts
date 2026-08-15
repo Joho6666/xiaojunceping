@@ -40,16 +40,22 @@ const curated: Record<ProjectKind, string[]> = {
     "harry0703/MoneyPrinterTurbo",
     "WyattBlue/auto-editor",
     "RayVentura/ShortGPT",
+    "remotion-dev/remotion",
+    "kdenlive/kdenlive",
+    "olive-editor/olive",
   ],
   web: [
     "medusajs/medusa",
     "saleor/saleor",
     "vercel/commerce",
     "nextjs/saas-starter",
+    "vendure-ecommerce/vendure",
+    "bagisto/bagisto",
+    "shopware/shopware",
   ],
-  cad: ["FreeCAD/FreeCAD", "CadQuery/cadquery", "openscad/openscad"],
-  pcb: ["devbisme/skidl", "KiCad/kicad-source-mirror", "LibrePCB/LibrePCB"],
-  automation: ["n8n-io/n8n", "activepieces/activepieces", "huginn/huginn"],
+  cad: ["FreeCAD/FreeCAD", "CadQuery/cadquery", "openscad/openscad", "BRL-CAD/brlcad"],
+  pcb: ["devbisme/skidl", "KiCad/kicad-source-mirror", "LibrePCB/LibrePCB", "easyw/kicad-3d-models"],
+  automation: ["n8n-io/n8n", "activepieces/activepieces", "huginn/huginn", "windmill-labs/windmill", "triggerdotdev/trigger.dev"],
   general: ["sindresorhus/awesome", "github/gitignore"],
 };
 
@@ -125,13 +131,13 @@ export function filterGithubProjects(
   return items
     .filter((item) => {
       const repo = item.repo.toLowerCase();
-      const text = `${item.repo} ${item.name}`.toLowerCase();
+      const text = `${item.repo} ${item.name} ${item.description} ${(item.capabilities || []).join(" ")} ${(item.stack || []).join(" ")}`.toLowerCase();
       return (
         curatedSet.has(repo) ||
         terms.some((term) => text.includes(term.toLowerCase()))
       );
     })
-    .slice(0, 6);
+    .slice(0, 12);
 }
 
 function mapRepository(
@@ -179,6 +185,7 @@ function mapRepository(
 export async function searchGithubProjects(
   project: Project,
   queryHints: string[] = [],
+  options: { githubToken?: string } = {},
 ): Promise<GithubProjectRecommendation[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
@@ -190,6 +197,7 @@ export async function searchGithubProjects(
             headers: {
               Accept: "application/vnd.github+json",
               "User-Agent": "AgentScope-Evaluator",
+              ...(options.githubToken ? { Authorization: `Bearer ${options.githubToken}` } : {}),
             },
             signal: controller.signal,
           });
@@ -212,6 +220,7 @@ export async function searchGithubProjects(
                 headers: {
                   Accept: "application/vnd.github+json",
                   "User-Agent": "AgentScope-Evaluator",
+                  ...(options.githubToken ? { Authorization: `Bearer ${options.githubToken}` } : {}),
                 },
                 signal: controller.signal,
               },
@@ -248,7 +257,7 @@ export async function searchGithubProjects(
     });
     const unique = Array.from(best.values())
       .sort((a, b) => b.rank - a.rank)
-      .slice(0, 6)
+      .slice(0, 12)
       .map((entry) => entry.item);
     return filterGithubProjects(project, unique.map(mapRepository)).map(
       (item) => ({ ...item, source: "live" as const }),
@@ -256,4 +265,20 @@ export async function searchGithubProjects(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function verifyGithubUrls(
+  project: Project,
+  urls: string[],
+  options: { githubToken?: string } = {},
+): Promise<GithubProjectRecommendation[]> {
+  const repos = Array.from(new Set(urls.map((url) => {
+    const match = url.match(/^https?:\/\/github\.com\/([^/]+\/[^/#?]+)/i);
+    return match?.[1]?.replace(/\.git$/, "");
+  }).filter((repo): repo is string => Boolean(repo))));
+  const responses = await Promise.all(repos.slice(0, 16).map(async (repo) => {
+    const response = await fetch(`https://api.github.com/repos/${repo}`, { headers: { Accept: "application/vnd.github+json", "User-Agent": "AgentScope-Evaluator", ...(options.githubToken ? { Authorization: `Bearer ${options.githubToken}` } : {}) }, signal: AbortSignal.timeout(12000) });
+    return response.ok ? await response.json() as Record<string, unknown> : null;
+  }));
+  return responses.filter((item): item is Record<string, unknown> => Boolean(item)).filter((item) => isRelevant(item, project.kind)).map((item, index) => ({ ...mapRepository(item, index), source: "live" as const }));
 }

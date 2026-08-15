@@ -1,14 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApp, newJob } from "../../../../components/AppProvider";
-import { EvaluationMode, GithubProjectRecommendation } from "../../../../types";
+import { EvaluationMode, GithubProjectRecommendation, ProjectReport } from "../../../../types";
 import {
   downloadText,
   reportToMarkdown,
 } from "../../../../services/exportService";
 import { rerunAnalysis } from "../../../../services/reportService";
-import { buildMockReport } from "../../../../data/reportCatalog";
+import { buildInputFingerprint } from "../../../../services/reportCustomizationService";
 import { PromptModal } from "../../../../components/report/PromptModal";
 import { QuickReport } from "../../../../components/report/QuickReport";
 import {
@@ -42,7 +42,36 @@ export default function ReportPage() {
     [compare, setCompare] = useState(false),
     [drawer, setDrawer] = useState<GithubProjectRecommendation | null>(null),
     [toast, setToast] = useState("");
+  const discoveryRef = useRef("");
+  const reportFetchRef = useRef("");
   const view = app.reportView || app.project?.evaluationMode || "quick";
+  useEffect(() => {
+    if (!app.hydrated || !app.project || String(params.id) !== app.project.id || reportFetchRef.current === String(params.id)) return;
+    reportFetchRef.current = String(params.id);
+    fetch(`/api/projects/${params.id}/report`).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json() as { report?: ProjectReport };
+      if (data.report) app.setReport(data.report);
+    }).catch(() => undefined);
+  }, [app, params.id]);
+  useEffect(() => {
+    if (!app.hydrated || !app.report || !app.project || String(params.id) !== app.project.id) return;
+    const key = `${app.project.id}:${app.report.generatedAt}`;
+    const ecosystemCategories = new Set<string>((app.report.ecosystem || []).map((item) => item.category));
+    const hasGithubEvidence = (app.report.sources || []).some((source) => source.id === "github-live" || source.id === "github-codex-search");
+    const needsDiscovery = !(app.report.githubProjects || []).length || !(app.report.ecosystem || []).length || !hasGithubEvidence || !["skill", "mcp", "plugin"].every((category) => ecosystemCategories.has(category));
+    if (!needsDiscovery || discoveryRef.current === key) return;
+    discoveryRef.current = key;
+    fetch(`/api/projects/${params.id}/discover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project: app.project, answers: app.answers }),
+    }).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json() as Pick<ProjectReport, "githubProjects" | "ecosystem" | "knowledge" | "sources">;
+      app.setReport({ ...app.report!, ...data });
+    }).catch(() => undefined);
+  }, [app, params.id]);
   useEffect(() => {
     if (!app.report || view === "quick") return;
     const observer = new IntersectionObserver(
@@ -81,23 +110,35 @@ export default function ReportPage() {
       </div>
     );
   const r = app.report;
+  const reportArraysValid = Array.isArray(r.scores) && Array.isArray(r.agents) && Array.isArray(r.models) && Array.isArray(r.githubProjects) && Array.isArray(r.referenceProducts) && Array.isArray(r.tools) && Array.isArray(r.ecosystem) && Array.isArray(r.interfaces) && Array.isArray(r.techStack) && Array.isArray(r.workflows) && Array.isArray(r.alternatives) && Array.isArray(r.architecture) && Array.isArray(r.risks) && Array.isArray(r.sources);
+  if (!reportArraysValid || !r.estimates?.tokens || !r.estimates?.time || !r.estimates?.cost || !r.estimates?.automation || !r.projectSummary || !r.strategy || !r.confidence || !r.generationMode || r.generationMode === "mock") {
+    return (
+      <div className="content empty-state">
+        <h1>这份报告需要重新生成</h1>
+        <p>当前保存的是示例报告、旧版本报告或结构不完整结果。为避免把固定内容误当成当前项目结论，系统没有继续渲染它。</p>
+        <button className="btn primary" onClick={async () => { await rerunAnalysis(app.project!.id); app.setReport(null); app.setAnalysisJob(newJob(view)); router.push(`/project/${params.id}/analysis`); }}>
+          重新分析
+        </button>
+      </div>
+    );
+  }
   // Older persisted reports predate projectIdea. Reattach the current project
   // context so domain filtering remains correct after a refresh or migration.
-  const staleTokenEstimate = r.estimates.tokens.display.includes("本次实际");
-  const fallbackEstimate = buildMockReport(app.project).estimates.tokens;
+  // Older persisted reports may have a partial estimate object. Treat that as
+  // stale instead of calling string methods on missing legacy fields.
+  const staleTokenEstimate = typeof r.estimates.tokens.display === "string" && r.estimates.tokens.display.includes("本次实际");
   const reportWithContext = {
     ...r,
     projectIdea: r.projectIdea || app.project.idea,
     ecosystem: r.ecosystem || [],
     estimates: {
       ...r.estimates,
-      tokens: staleTokenEstimate ? fallbackEstimate : r.estimates.tokens,
+      tokens: r.estimates.tokens,
     },
   };
-  const needsRefresh = !r.projectIdea || staleTokenEstimate;
-  const isLiveReport = reportWithContext.sources.some(
-    (source) => source.id === "deepseek",
-  );
+  const currentFingerprint = buildInputFingerprint(app.project, app.answers, "knowledge-v1", "knowledge-base+github");
+  const needsRefresh = !r.projectIdea || staleTokenEstimate || (Boolean(r.inputFingerprint) && r.inputFingerprint !== currentFingerprint);
+  const isLiveReport = reportWithContext.generationMode === "live";
   const message = (x: string) => {
     setToast(x);
     setTimeout(() => setToast(""), 1800);
@@ -133,8 +174,8 @@ export default function ReportPage() {
             <p className="muted">
               分析时间：{new Date(r.generatedAt).toLocaleString("zh-CN")} ·
               {isLiveReport
-                ? "DeepSeek 实时分析"
-                : "示例报告，请连接 Provider 后重新分析"}
+                ? `${r.provider || "已连接 Provider"} / ${r.model || "已选模型"} 实时分析`
+                : r.generationMode === "knowledge-only" ? "知识库规则分析" : "示例报告，需要重新分析"}
             </p>
           </div>
           <div className="report-actions">
@@ -191,9 +232,7 @@ export default function ReportPage() {
         </header>
         {needsRefresh && (
           <div className="report-notice" role="status">
-            这份报告包含旧版缓存字段，部分策略、参考项目或 Token
-            展示可能过时。点击“重新分析”后将使用当前项目描述、领域工作流和
-            GitHub 相关性过滤重新生成。
+            这份报告不是当前输入对应的实时结果，或来自旧版缓存。点击“重新分析”后，系统会重新读取当前项目、所选模型、知识库和联网搜索结果；真实分析失败时不会用示例报告替代。
           </div>
         )}
         {view === "quick" ? (

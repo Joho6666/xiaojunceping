@@ -92,7 +92,7 @@ export async function generateDeepSeekEvaluation(
     /\/$/,
     "",
   );
-  const model = connection.model || "deepseek-chat";
+  const model = connection.model || "deepseek-v4-flash";
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90000);
   const profile = profileFor(project);
@@ -226,7 +226,7 @@ export async function generateDeepSeekSearchPlan(
     /\/$/,
     "",
   );
-  const model = connection.model || "deepseek-chat";
+  const model = connection.model || "deepseek-v4-flash";
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45000);
   const profile = profileFor(project);
@@ -322,3 +322,4 @@ export async function generateDeepSeekSearchPlan(
     clearTimeout(timeout);
   }
 }
+

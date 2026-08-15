@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ProviderConnection, ProviderId } from "../../../types";
+import { CapabilityConnection, CapabilityId, ProviderConnection, ProviderId } from "../../../types";
 const providers: [ProviderId, string, string, string][] = [
   ["openai", "OpenAI / Codex", "Codex CLI", "ChatGPT / OpenAI 连接"],
   ["anthropic", "Anthropic / Claude", "Claude CLI", "Claude Code 连接"],
@@ -12,23 +12,64 @@ const providers: [ProviderId, string, string, string][] = [
     "OpenAI-compatible API",
     "自动识别 DeepSeek 官方或火山方舟 API",
   ],
+  ["custom", "自定义模型供应商", "OpenAI-compatible API", "填写供应商 Base URL、API Key 和模型 ID"],
+];
+const capabilities: [CapabilityId, string, string][] = [
+  ["web-search", "浏览器搜索", "为研究 Agent 提供实时网页搜索能力"],
+  ["github", "GitHub", "使用 GitHub API 搜索仓库、读取活跃度和项目元数据"],
+  ["browser", "浏览器操作", "Playwright / Browser Use，支持网页验证和 E2E 测试"],
+  ["mcp", "MCP Server", "连接外部 MCP 工具和项目专用工具能力"],
+  ["filesystem", "受控文件访问", "允许 Agent 在授权目录内读取和修改文件"],
+  ["terminal", "受控终端执行", "允许 Agent 执行构建、测试和诊断命令"],
 ];
 export default function AISettings() {
   const [connections, setConnections] = useState<ProviderConnection[]>([]);
+  const [capabilityConnections, setCapabilityConnections] = useState<CapabilityConnection[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
   const [apiKey, setApiKey] = useState<Record<string, string>>({});
   const [baseUrl, setBaseUrl] = useState<Record<string, string>>({});
   const [model, setModel] = useState<Record<string, string>>({
-    deepseek: "deepseek-chat",
+    deepseek: "deepseek-v4-flash",
   });
+  const [codexModels, setCodexModels] = useState<{ id: string; label: string }[]>([]);
+  const [capabilitySecret, setCapabilitySecret] = useState<Record<string, string>>({});
+  const [capabilityEndpoint, setCapabilityEndpoint] = useState<Record<string, string>>({});
   const router = useRouter();
   const load = async () => {
     const response = await fetch("/api/connections");
     if (response.ok) setConnections((await response.json()).connections);
+    const capabilityResponse = await fetch("/api/capabilities");
+    if (capabilityResponse.ok) setCapabilityConnections((await capabilityResponse.json()).capabilities);
   };
+  const saveCapabilityConfig = async (id: CapabilityId) => {
+    setBusy(id);
+    const response = await fetch("/api/capabilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, secret: capabilitySecret[id], endpoint: capabilityEndpoint[id] }) });
+    const data = await response.json();
+    setMessage(response.ok ? `${data.capability.name} 配置已保存，请点击测试连接。` : `配置失败：${data.error || "未知错误"}`);
+    if (response.ok) { setCapabilitySecret((current) => ({ ...current, [id]: "" })); await load(); }
+    setBusy("");
+  };
+  const testCapability = async (id: CapabilityId) => {
+    setBusy(id);
+    const response = await fetch(`/api/capabilities/${id}/test`, { method: "POST" });
+    const data = await response.json();
+    setMessage(data.message || "能力测试完成");
+    await load();
+    setBusy("");
+  };
+  const removeCapability = async (id: CapabilityId) => { await fetch(`/api/capabilities/${id}`, { method: "DELETE" }); await load(); setMessage("能力配置已移除"); };
   useEffect(() => {
     load();
+    fetch("/api/connections/provider/openai/cli/models")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (data?.models?.length) {
+          setCodexModels(data.models);
+          setModel((current) => ({ ...current, openai: current.openai || data.models[0].id }));
+        }
+      })
+      .catch(() => undefined);
   }, []);
   const updateKey = (provider: ProviderId, value: string) => {
     setApiKey((current) => ({ ...current, [provider]: value }));
@@ -49,7 +90,7 @@ export default function AISettings() {
     try {
       const response = await fetch(
         `/api/connections/provider/${provider}/cli/check`,
-        { method: "POST" },
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: model[provider] || undefined }) },
       );
       const data = await response.json();
       setMessage(data.health?.message || data.message || "检查完成");
@@ -80,6 +121,8 @@ export default function AISettings() {
           ? "请输入 API Key"
           : data.error === "API_KEY_INVALID_FORMAT"
             ? "这不是有效的 API Key。请勿把模型 ID 填入 Key 输入框。"
+          : data.error === "BASE_URL_REQUIRED"
+            ? "自定义供应商必须填写 Base URL。"
           : `连接失败：${data.error}`,
     );
     if (response.ok) {
@@ -124,7 +167,7 @@ export default function AISettings() {
         <button className="btn" onClick={() => router.back()}>
           ← 返回
         </button>
-        <div className="eyebrow">AgentScope Settings</div>
+        <div className="eyebrow">小君AI测评 · Settings</div>
         <h1>AI 配置</h1>
         <p className="muted">
           连接你已经登录的本地 CLI，或配置 OpenAI-compatible
@@ -134,7 +177,7 @@ export default function AISettings() {
         <section className="settings-grid">
           {providers.map(([id, name, cli, desc]) => {
             const connection = connections.find((x) => x.provider === id);
-            const isDeepSeek = id === "deepseek";
+            const isApiProvider = id === "deepseek" || id === "custom";
             return (
               <article className="card provider-card" key={id}>
                 <div className="provider-head">
@@ -155,7 +198,7 @@ export default function AISettings() {
                           : "未连接"}
                   </span>
                 </div>
-                {!isDeepSeek && (
+                {!isApiProvider && (
                   <div className="provider-actions">
                     <button
                       className="btn primary"
@@ -168,6 +211,12 @@ export default function AISettings() {
                       网页 OAuth
                     </button>
                   </div>
+                )}
+                {id === "openai" && (
+                  <select className="settings-input" value={model[id] || ""} onChange={(e) => setModel((x) => ({ ...x, [id]: e.target.value }))}>
+                    {!codexModels.length && <option value="">正在读取 Codex 模型…</option>}
+                    {codexModels.map((item) => <option value={item.id} key={item.id}>{item.label} · {item.id}</option>)}
+                  </select>
                 )}
                 <div className="api-key-row">
                   <input
@@ -184,7 +233,7 @@ export default function AISettings() {
                     保存
                   </button>
                 </div>
-                {isDeepSeek && (
+                {isApiProvider && (
                   <>
                     <input
                       className="settings-input"
@@ -192,7 +241,7 @@ export default function AISettings() {
                       onChange={(e) =>
                         setBaseUrl((x) => ({ ...x, [id]: e.target.value }))
                       }
-                      placeholder="Base URL：DeepSeek 官方或火山方舟（ark Key 自动识别）"
+                      placeholder={id === "deepseek" ? "Base URL：DeepSeek 官方或火山方舟（ark Key 自动识别）" : "Base URL，例如 https://api.example.com/v1"}
                     />
                     <input
                       className="settings-input"
@@ -200,7 +249,7 @@ export default function AISettings() {
                       onChange={(e) =>
                         setModel((x) => ({ ...x, [id]: e.target.value }))
                       }
-                      placeholder="模型 ID，例如 deepseek-chat"
+                      placeholder={id === "deepseek" ? "模型 ID，例如 deepseek-v4-flash" : "模型 ID，例如 provider-model-name"}
                     />
                   </>
                 )}
@@ -230,6 +279,24 @@ export default function AISettings() {
             );
           })}
         </section>
+        <section className="card capability-panel">
+          <div className="provider-head">
+            <div><span className="mono tiny">TOOLS & RESEARCH</span><h2>工具与研究能力</h2><p>这些能力会在项目分析时被实际检查和使用。密钥只发送到服务端，不写入浏览器。</p></div>
+          </div>
+          <div className="capability-grid">
+            {capabilities.map(([id, name, desc]) => {
+              const connection = capabilityConnections.find((item) => item.id === id);
+              const needsSecret = id === "web-search" || id === "github";
+              const needsEndpoint = id === "web-search" || id === "mcp";
+              return <article className="card capability-card" key={id}>
+                <div className="provider-head"><div><h3>{name}</h3><p>{desc}</p></div><span className={`status-chip ${connection?.status === "connected" ? "good" : "warn"}`}>{connection?.status === "connected" ? "已验证" : connection ? "待测试" : "未配置"}</span></div>
+                {needsSecret && <input type="password" value={capabilitySecret[id] || ""} onChange={(event) => setCapabilitySecret((current) => ({ ...current, [id]: event.target.value }))} placeholder={id === "github" ? "GitHub Token（仅发送到服务端）" : "搜索 API Key（仅发送到服务端）"} />}
+                {needsEndpoint && <input className="settings-input" value={capabilityEndpoint[id] || ""} onChange={(event) => setCapabilityEndpoint((current) => ({ ...current, [id]: event.target.value }))} placeholder={id === "mcp" ? "MCP Server URL" : "搜索 API Endpoint（可选）"} />}
+                <div className="provider-actions"><button className="btn" disabled={busy === id} onClick={() => saveCapabilityConfig(id)}>{busy === id ? "保存中…" : "保存配置"}</button><button className="btn" disabled={busy === id || !connection} onClick={() => testCapability(id)}>测试能力</button>{connection && <button className="text-link button-link" onClick={() => removeCapability(id)}>移除</button>}</div>
+              </article>;
+            })}
+          </div>
+        </section>
         <section className="card settings-note">
           <h2>授权说明</h2>
           <p>
@@ -247,3 +314,4 @@ export default function AISettings() {
     </main>
   );
 }
+

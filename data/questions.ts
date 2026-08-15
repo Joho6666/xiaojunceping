@@ -5,7 +5,7 @@ const base:InterviewQuestion[]=[
  {id:'goal',title:'你为什么想做这个项目？',type:'multi-choice',category:'项目目标',required:true,options:opts(['学习和练手','完成课程 / 比赛','自己使用','给客户交付','自动化现有工作','创业 MVP','商业产品','正式生产环境','其他'])},
  {id:'stage',title:'你希望最终做到什么程度？',type:'single-choice',category:'完成程度',required:true,options:[['概念验证','验证核心想法是否可行'],['Demo','核心功能可以运行'],['可用产品','可以给真实用户使用'],['商业 MVP','可以给第一批付费用户使用'],['正式产品','可以稳定长期运营'],['生产级','考虑安全、性能、监控与扩展']].map(([label,description])=>({label,description}))},
  {id:'audience',title:'这个项目主要给谁使用？',type:'multi-choice',category:'目标用户',required:true,options:opts(['自己','学生','开发者','内容创作者','普通消费者','企业','客户','海外用户','国内用户','其他'])},
- {id:'deliverables',title:'你最终希望得到哪些交付物？',type:'multi-choice',category:'交付物',required:true,options:opts(['网站','Web App','手机 App','桌面应用','AI Agent','API','自动化工作流','CAD 模型','PCB','视频','文档','源代码','可运行程序','部署环境'])},
+ {id:'deliverables',title:'你最终希望得到哪些交付物？',type:'multi-choice',category:'交付物',required:true,options:[...opts(['网站','Web App','手机 App','桌面应用','AI Agent','API','自动化工作流','CAD 模型','PCB','视频','文档','源代码','可运行程序','部署环境']),{label:'自定义',description:'填写你自己的项目名称或交付物名称'}]},
  {id:'priority',title:'做这个项目时，你最看重什么？',description:'使用上下按钮调整优先级。',type:'ranking',category:'优先级',required:true,options:opts(['最终效果','开发速度','成本','自动化程度','稳定性','易维护','可扩展','UI / UX'])},
  {id:'resources',title:'目前你已经有哪些资源？',type:'multi-choice',category:'已有资源',options:opts(['什么都没有','已有需求','现有代码','GitHub 项目','UI 设计稿','参考网站','CAD 文件','PCB 文件','API','数据集','文档','视频素材'])},
  {id:'timeline',title:'你希望多久完成？',type:'single-choice',category:'周期',required:true,options:opts(['今天','1–3 天','1 周','2 周','1 个月','无严格期限'])},
