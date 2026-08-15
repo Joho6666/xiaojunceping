@@ -167,7 +167,7 @@ export default function AISettings() {
         <button className="btn" onClick={() => router.back()}>
           ← 返回
         </button>
-        <div className="eyebrow">AgentScope Settings</div>
+        <div className="eyebrow">小君AI测评 · Settings</div>
         <h1>AI 配置</h1>
         <p className="muted">
           连接你已经登录的本地 CLI，或配置 OpenAI-compatible

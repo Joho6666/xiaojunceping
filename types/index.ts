@@ -407,6 +407,7 @@ export interface ProjectReport {
   inputFingerprint?: string;
   provider?: string;
   model?: string;
+  connectionMode?: ConnectionMode;
   searchPlan?: SearchPlan;
   verifiedFacts?: VerifiedFact[];
   inferredSuggestions?: InferredSuggestion[];

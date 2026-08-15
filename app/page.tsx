@@ -8,7 +8,7 @@ import { EvaluationMode, ProviderConnection } from "../types";
 
 const productHighlights = [
   {
-    image: "/images/product/screen-01.png",
+    image: "/images/product/agentscope-workflow-cn.png",
     title: "项目结论与可行性判断",
     description: "从目标、约束和访谈答案出发，给出项目专属结论、评分、风险和下一步建议。",
   },
@@ -165,7 +165,7 @@ export default function Home() {
         <section className="flow-strip">
           <div className="card flow-card">
             <h3>你的想法</h3>
-            <p>告诉 AgentScope 你想做什么，以及最重要的目标和约束。</p>
+            <p>告诉小君AI测评你想做什么，以及最重要的目标和约束。</p>
           </div>
           <span>→</span>
           <div className="card flow-card">
@@ -205,7 +205,7 @@ export default function Home() {
               <div className="eyebrow">PRODUCT WORKSPACE</div>
               <h2 id="product-preview-title">从项目想法，到一套能执行的方案</h2>
               <p>
-                AgentScope 会把项目描述、已选模型、知识库和实时来源连接起来，输出可解释、可复用、可交付的评估结果。
+                小君AI测评会把项目描述、已选模型、知识库和实时来源连接起来，输出可解释、可复用、可交付的评估结果。
               </p>
             </div>
             <a className="btn" href="/settings/knowledge">查看知识库</a>

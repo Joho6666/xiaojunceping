@@ -1,9 +1,91 @@
 import { AnswerValue, AgentPlan, AgentRecommendation, Project, ProjectReport, PromptArtifact, RequirementProfile } from '../types';
+import { modelKnowledgeCatalog } from '../data/knowledgeCatalog';
 
 function hash(input: string) {
   let value = 2166136261;
   for (let i = 0; i < input.length; i++) value = Math.imul(value ^ input.charCodeAt(i), 16777619);
   return (value >>> 0).toString(16).padStart(8, '0');
+}
+
+function parseTokenRange(value: string): [number, number] {
+  const normalized = value.replace(/,/g, '').toLowerCase();
+  const numbers = Array.from(normalized.matchAll(/(\d+(?:\.\d+)?)\s*(万|k|m)?/g)).map((match) => {
+    const amount = Number(match[1]);
+    const unit = match[2];
+    return unit === '万' ? amount * 10_000 : unit === 'm' ? amount * 1_000_000 : unit === 'k' ? amount * 1_000 : amount;
+  }).filter(Number.isFinite);
+  if (numbers.length >= 2) return [Math.min(numbers[0], numbers[1]), Math.max(numbers[0], numbers[1])];
+  if (numbers.length === 1) return [numbers[0], numbers[0]];
+  return [30_000, 150_000];
+}
+
+function parseUsdPerMillion(value?: string) {
+  if (!value) return undefined;
+  const match = value.replace(',', '').match(/\$\s*(\d+(?:\.\d+)?)\s*\/\s*M/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+function findModelPricing(provider: string, model: string) {
+  const normalized = model.toLowerCase();
+  const item = modelKnowledgeCatalog.find((candidate) => {
+    const candidateModel = (candidate.modelId || '').toLowerCase();
+    const aliases = (candidate.aliases || []).map((alias) => alias.toLowerCase());
+    return candidate.kind === 'llm' && candidateModel && (candidateModel === normalized || aliases.includes(normalized));
+  });
+  const input = parseUsdPerMillion(item?.pricingDetails?.input);
+  const output = parseUsdPerMillion(item?.pricingDetails?.output);
+  if (input !== undefined && output !== undefined) return { input, output, source: item?.sourceUrl || '模型价格快照', updatedAt: item?.sourceUpdatedAt || item?.updatedAt };
+  if (provider === 'openai' && model.toLowerCase().includes('codex')) return { accountPlan: true, source: 'Codex CLI 账户计划', updatedAt: undefined };
+  return undefined;
+}
+
+function calculateImplementationCost(project: Project, report: ProjectReport): ProjectReport['estimates']['cost'] {
+  const model = report.model || project.selectedModel || report.models[0]?.modelId || '';
+  const provider = report.provider || report.models[0]?.provider || '';
+  const [lowTokens, highTokens] = parseTokenRange(report.estimates.tokens.display || report.estimates.tokens.range);
+  const pricing = report.connectionMode === 'cli' && provider === 'openai'
+    ? { accountPlan: true, source: 'Codex CLI 账户计划', updatedAt: undefined }
+    : findModelPricing(provider, model);
+  if (pricing && 'accountPlan' in pricing) {
+    return {
+      display: '按 Codex 账户计划计费（不按 API Token 单独结算）',
+      range: '项目实施预算不含账户订阅费、部署费和第三方服务费',
+      confidence: '中',
+      breakdown: [
+        { label: '主模型', value: `${provider} / ${model}` },
+        { label: '项目实施 Token', value: `${Math.round(lowTokens).toLocaleString()}–${Math.round(highTokens).toLocaleString()}（预测）` },
+        { label: '价格依据', value: pricing.source },
+      ],
+    };
+  }
+  if (pricing) {
+    const inputCostLow = lowTokens * 0.45 / 1_000_000 * pricing.input;
+    const inputCostHigh = highTokens * 0.45 / 1_000_000 * pricing.input;
+    const outputCostLow = lowTokens * 0.55 / 1_000_000 * pricing.output;
+    const outputCostHigh = highTokens * 0.55 / 1_000_000 * pricing.output;
+    const low = inputCostLow + outputCostLow;
+    const high = inputCostHigh + outputCostHigh;
+    return {
+      display: `约 $${low.toFixed(2)}–$${high.toFixed(2)}（模型调用）`,
+      range: `按 ${model} 价格快照估算；输入占 45%、输出占 55%，不含部署和第三方服务`,
+      confidence: '中',
+      breakdown: [
+        { label: '输入 Token（45%）', value: `$${inputCostLow.toFixed(2)}–$${inputCostHigh.toFixed(2)}` },
+        { label: '输出 Token（55%）', value: `$${outputCostLow.toFixed(2)}–$${outputCostHigh.toFixed(2)}` },
+        { label: '价格依据', value: `${pricing.source}${pricing.updatedAt ? `（${pricing.updatedAt}）` : ''}` },
+      ],
+    };
+  }
+  return {
+    display: '当前模型未提供可核验的 Token 单价',
+    range: `已计算项目实施 Token：${Math.round(lowTokens).toLocaleString()}–${Math.round(highTokens).toLocaleString()}；请在知识库补充 ${provider}/${model} 的输入、输出单价`,
+    confidence: '低',
+    breakdown: [
+      { label: '主模型', value: `${provider || '未识别 Provider'} / ${model || '未识别模型'}` },
+      { label: '项目实施 Token', value: `${Math.round(lowTokens).toLocaleString()}–${Math.round(highTokens).toLocaleString()}（预测）` },
+      { label: '未计入', value: '部署、搜索服务、存储、图片/视频生成和第三方订阅' },
+    ],
+  };
 }
 
 export function buildInputFingerprint(project: Project, answers: Record<string, AnswerValue>, knowledgeVersion: string, searchSource: string) {
@@ -101,5 +183,6 @@ export function customizeProjectSections(project: Project, profile: RequirementP
   const selectedModel = report.model || project.selectedModel || '按已选模型';
   const dynamicStack = stackByKind[project.kind].map((name, index) => ({ layer: ['核心能力', '实现框架', '数据与集成', '验证与交付'][index] || '扩展', name, reasons: [`与${domainLabel[project.kind]}目标直接相关`, ...profile.goals.slice(0, 1)], alternative: '需要结合现有仓库和预算确认', matchScore: Math.max(68, 92 - index * 5) }));
   const baseScore = 66 + ((project.idea.length + profile.capabilities.length * 7) % 25);
-  return { ...report, projectSummary: { ...report.projectSummary, title: project.idea.slice(0, 36) || `${domainLabel[project.kind]}评估`, typeLabel: domainLabel[project.kind], score: baseScore, summary: `${project.idea}。本报告根据当前项目描述、访谈答案、${selectedModel} 和已核验生态候选生成。`, acceptanceCriteria: profile.acceptanceCriteria?.length ? profile.acceptanceCriteria : report.projectSummary.acceptanceCriteria }, scores: report.scores.map((item, index) => ({ ...item, score: Math.max(55, Math.min(96, baseScore - index * 3)) })), referenceProducts: products, alternatives: [{ name: '最小可行方案', strategy: `${domainLabel[project.kind]}最小闭环`, recommended: true, time: '1–2 周', tokens: '约 3 万–8 万', cost: '低–中', risk: '中', freedom: '高', description: '先实现当前项目最核心的验收路径，再扩展边界能力。' }, { name: '开源二次开发', strategy: '基于核验项目组合改造', time: '2–4 周', tokens: '约 6 万–15 万', cost: '中', risk: '中–高', freedom: '中', description: '复用成熟模块，重点核对许可证、版本和二次开发成本。' }, { name: '托管服务组合', strategy: 'SaaS/API + 自定义编排', time: '3–10 天', tokens: '约 2 万–6 万', cost: '中–高', risk: '供应商依赖', freedom: '低', description: '适合先验证业务，但需要确认数据、费用和退出方案。' }], techStack: dynamicStack, strategy: { ...report.strategy, recipe: [domainLabel[project.kind], selectedModel, ...stackByKind[project.kind].slice(0, 2)] }, estimates: { ...report.estimates, tokens: { ...report.estimates.tokens, display: '约 3 万–15 万', range: '按 Agent 阶段与代码规模估算', breakdown: dynamicStack.slice(0, 3).map((item) => ({ label: item.layer, value: '约 1 万–5 万' })) }, time: { ...report.estimates.time, display: '约 1–4 周', range: '取决于范围、接口和人工确认速度' }, cost: { ...report.estimates.cost, display: '待按 Provider 价格核算', range: '外部 API、部署和第三方服务另计' } }, architecture: report.agentPlan?.agents.map((agent) => agent.name) || report.architecture, workflows: report.workflows.map((phase, index) => ({ ...phase, model: index === 0 ? selectedModel : phase.model })) };
+  const customized = { ...report, projectSummary: { ...report.projectSummary, title: project.idea.slice(0, 36) || `${domainLabel[project.kind]}评估`, typeLabel: domainLabel[project.kind], score: baseScore, summary: `${project.idea}。本报告根据当前项目描述、访谈答案、${selectedModel} 和已核验生态候选生成。`, acceptanceCriteria: profile.acceptanceCriteria?.length ? profile.acceptanceCriteria : report.projectSummary.acceptanceCriteria }, scores: report.scores.map((item, index) => ({ ...item, score: Math.max(55, Math.min(96, baseScore - index * 3)) })), referenceProducts: products, alternatives: [{ name: '最小可行方案', strategy: `${domainLabel[project.kind]}最小闭环`, recommended: true, time: '1–2 周', tokens: '约 3 万–8 万', cost: '低–中', risk: '中', freedom: '高', description: '先实现当前项目最核心的验收路径，再扩展边界能力。' }, { name: '开源二次开发', strategy: '基于核验项目组合改造', time: '2–4 周', tokens: '约 6 万–15 万', cost: '中', risk: '中–高', freedom: '中', description: '复用成熟模块，重点核对许可证、版本和二次开发成本。' }, { name: '托管服务组合', strategy: 'SaaS/API + 自定义编排', time: '3–10 天', tokens: '约 2 万–6 万', cost: '中–高', risk: '供应商依赖', freedom: '低', description: '适合先验证业务，但需要确认数据、费用和退出方案。' }], techStack: dynamicStack, strategy: { ...report.strategy, recipe: [domainLabel[project.kind], selectedModel, ...stackByKind[project.kind].slice(0, 2)] }, estimates: { ...report.estimates, tokens: { ...report.estimates.tokens, display: '约 3 万–15 万', range: '按 Agent 阶段与代码规模估算', breakdown: dynamicStack.slice(0, 3).map((item) => ({ label: item.layer, value: '约 1 万–5 万' })) }, time: { ...report.estimates.time, display: '约 1–4 周', range: '取决于范围、接口和人工确认速度' } }, architecture: report.agentPlan?.agents.map((agent) => agent.name) || report.architecture, workflows: report.workflows.map((phase, index) => ({ ...phase, model: index === 0 ? selectedModel : phase.model })) };
+  return { ...customized, estimates: { ...customized.estimates, cost: calculateImplementationCost(project, customized) } };
 }

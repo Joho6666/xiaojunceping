@@ -228,7 +228,7 @@ export default function Analysis() {
         <section className="content">
           <div className="analysis-bg">
             <div className="eyebrow">
-              AgentScope {mode === "quick" ? "快速评估" : "项目分析"}
+              小君AI测评 {mode === "quick" ? "快速评估" : "项目分析"}
             </div>
             <h1>
               {error

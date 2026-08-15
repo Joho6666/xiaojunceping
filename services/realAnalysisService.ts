@@ -1,4 +1,4 @@
-import { AnswerValue, GithubProjectRecommendation, Project, ProjectReport } from "../types";
+import { AnswerValue, ConnectionMode, GithubProjectRecommendation, Project, ProjectReport } from "../types";
 import { buildMockReport } from "../data/reportCatalog";
 import {
   generateDeepSeekEvaluation,
@@ -71,7 +71,7 @@ function knowledgeSnapshot(matches: KnowledgeMatch[], liveSearchAt: string, filt
 export async function analyzeWithDeepSeek(
   project: Project,
   answers: Record<string, AnswerValue>,
-  connection: { baseUrl?: string; model?: string; secret?: string; provider?: string },
+  connection: { baseUrl?: string; model?: string; secret?: string; provider?: string; mode?: ConnectionMode },
 ): Promise<ProjectReport> {
   const searchPlan = await generateDeepSeekSearchPlan(
     project,
@@ -347,6 +347,7 @@ export async function analyzeWithDeepSeek(
     projectIdea: project.idea,
     generationMode: "live",
     provider: connection.provider || "deepseek",
+    connectionMode: connection.mode,
     model: connection.model || "deepseek-v4-flash",
     inputFingerprint: buildInputFingerprint(project, answers, "knowledge-v1", "knowledge-base+github"),
   };
@@ -445,6 +446,7 @@ export async function analyzeWithCodex(
     generatedAt: new Date().toISOString(),
     generationMode: "live",
     provider: "openai",
+    connectionMode: "cli",
     model: model || process.env.CODEX_MODEL || process.env.AI_REASONING_MODEL || "Codex CLI 默认模型",
     inputFingerprint: buildInputFingerprint(project, answers, "knowledge-v1", "knowledge-base+github"),
   };

@@ -839,7 +839,7 @@ export function GithubDrawer({
             <li key={x}>{x}</li>
           ))}
         </ul>
-        <h3>AgentScope 建议</h3>
+        <h3>小君AI测评建议</h3>
         <p>{item.advice}</p>
         <a
           className="btn primary"
