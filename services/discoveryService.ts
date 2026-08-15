@@ -33,6 +33,8 @@ function ecosystemFromKnowledge(matches: KnowledgeMatch[]): EcosystemRecommendat
       reason: `${match.ruleNotes.join("；") || "命中项目需求标签"}。来源：${match.item.sourceUrl}`,
       capabilities: match.item.capabilities,
       access: match.item.access || "需查看官方文档",
+      pricing: match.item.pricing,
+      pricingDetails: match.item.pricingDetails,
     }));
 }
 

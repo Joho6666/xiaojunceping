@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { KnowledgeItem, KnowledgeKind, KnowledgeSyncRun } from "../types";
 import { additionalKnowledgeCatalog, expandedKnowledgeCatalog, modelKnowledgeCatalog } from "../data/knowledgeCatalog";
+import { knowledgeCatalogExpansion } from "../data/knowledgeCatalogExpansion";
 
 type KnowledgeRow = Omit<KnowledgeItem, "capabilities" | "tags" | "stack" | "platforms" | "modelId" | "contextWindow" | "maxOutput" | "modalities" | "modelCapabilities" | "lifecycle" | "aliases" | "pricingDetails" | "sourceUpdatedAt"> & {
   capabilities: string;
@@ -86,10 +87,43 @@ const baseSeed: KnowledgeItem[] = [
   { id: "official-claude-code", kind: "agent", name: "Claude Code", vendor: "Anthropic", summary: "适合长上下文架构分析、代码审查和重构。", url: "https://docs.anthropic.com/en/docs/claude-code", capabilities: ["长上下文", "重构", "Review"], tags: ["agent", "coding", "review"], stack: ["CLI"], platforms: ["Windows", "macOS", "Linux"], access: "CLI / API", pricing: "按账户计划", sourceType: "official", sourceUrl: "https://docs.anthropic.com/en/docs/claude-code", updatedAt: "2026-08-01", confidence: "高", publication: "published", status: "active" },
   { id: "official-deepseek", kind: "llm", name: "DeepSeek", vendor: "DeepSeek", summary: "适合中文需求理解、研究规划和结构化评估。", url: "https://platform.deepseek.com/", capabilities: ["中文", "推理", "结构化 JSON"], tags: ["llm", "中文", "reasoning"], stack: ["API"], platforms: ["Cloud"], access: "API Key", pricing: "按 Token", sourceType: "official", sourceUrl: "https://platform.deepseek.com/api-docs/", updatedAt: "2026-08-01", confidence: "高", publication: "published", status: "active" },
 ];
-const seed: KnowledgeItem[] = [...baseSeed, ...expandedKnowledgeCatalog, ...additionalKnowledgeCatalog, ...modelKnowledgeCatalog];
+const seed: KnowledgeItem[] = [...baseSeed, ...expandedKnowledgeCatalog, ...additionalKnowledgeCatalog, ...modelKnowledgeCatalog, ...knowledgeCatalogExpansion];
 
 function parse(row: KnowledgeRow): KnowledgeItem {
-  return { ...row, githubUrl: row.githubUrl || undefined, vendor: row.vendor || undefined, version: row.version || undefined, url: row.url || undefined, license: row.license || undefined, access: row.access || undefined, pricing: row.pricing || undefined, verifiedAt: row.verifiedAt || undefined, modelId: row.model_id || undefined, contextWindow: row.context_window || undefined, maxOutput: row.max_output || undefined, lifecycle: (row.lifecycle as KnowledgeItem["lifecycle"]) || undefined, sourceUpdatedAt: row.source_updated_at || undefined, capabilities: JSON.parse(row.capabilities), tags: JSON.parse(row.tags), stack: JSON.parse(row.stack), platforms: JSON.parse(row.platforms), modalities: row.modalities ? JSON.parse(row.modalities) : undefined, modelCapabilities: row.model_capabilities ? JSON.parse(row.model_capabilities) : undefined, aliases: row.aliases ? JSON.parse(row.aliases) : undefined, pricingDetails: row.pricing_details ? JSON.parse(row.pricing_details) : undefined };
+  const raw = row as KnowledgeRow & Record<string, unknown>;
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    vendor: row.vendor || undefined,
+    version: row.version || undefined,
+    summary: row.summary,
+    url: row.url || undefined,
+    githubUrl: raw.github_url ? String(raw.github_url) : undefined,
+    capabilities: JSON.parse(row.capabilities),
+    tags: JSON.parse(row.tags),
+    stack: JSON.parse(row.stack),
+    platforms: JSON.parse(row.platforms),
+    license: row.license || undefined,
+    access: row.access || undefined,
+    pricing: row.pricing || undefined,
+    sourceType: raw.source_type as KnowledgeItem["sourceType"],
+    sourceUrl: String(raw.source_url),
+    updatedAt: String(raw.updated_at),
+    verifiedAt: raw.verified_at ? String(raw.verified_at) : undefined,
+    confidence: raw.confidence as KnowledgeItem["confidence"],
+    publication: raw.publication as KnowledgeItem["publication"],
+    status: raw.status as KnowledgeItem["status"],
+    modelId: row.model_id || undefined,
+    contextWindow: row.context_window || undefined,
+    maxOutput: row.max_output || undefined,
+    lifecycle: (row.lifecycle as KnowledgeItem["lifecycle"]) || undefined,
+    sourceUpdatedAt: row.source_updated_at || undefined,
+    modalities: row.modalities ? JSON.parse(row.modalities) : undefined,
+    modelCapabilities: row.model_capabilities ? JSON.parse(row.model_capabilities) : undefined,
+    aliases: row.aliases ? JSON.parse(row.aliases) : undefined,
+    pricingDetails: row.pricing_details ? JSON.parse(row.pricing_details) : undefined,
+  };
 }
 
 const columns = "id,kind,name,vendor,version,summary,url,github_url,capabilities,tags,stack,platforms,license,access,pricing,source_type,source_url,updated_at,verified_at,confidence,publication,status,model_id,context_window,max_output,modalities,model_capabilities,lifecycle,aliases,pricing_details,source_updated_at";
@@ -106,13 +140,16 @@ function seedIfEmpty(database: Database.Database) {
 }
 
 function seedMissing(database: Database.Database) {
-  [...expandedKnowledgeCatalog, ...additionalKnowledgeCatalog, ...modelKnowledgeCatalog].forEach((item) => {
+  [...expandedKnowledgeCatalog, ...additionalKnowledgeCatalog, ...modelKnowledgeCatalog, ...knowledgeCatalogExpansion].forEach((item) => {
     upsertKnowledgeItem(item);
   });
 }
 
 export function listKnowledgeItems(kind?: KnowledgeKind) {
-  const rows = (kind ? database().prepare("SELECT * FROM knowledge_items WHERE kind = ? AND publication = 'published' AND status != 'invalid'").all(kind) : database().prepare("SELECT * FROM knowledge_items WHERE publication = 'published' AND status != 'invalid'").all()) as KnowledgeRow[];
+  // Published recommendations must have a verifiable HTTP source. This also
+  // keeps older or malformed local imports out of reports without deleting the
+  // user's local data; they can still be reviewed and corrected in the KB UI.
+  const rows = (kind ? database().prepare("SELECT * FROM knowledge_items WHERE kind = ? AND publication = 'published' AND status != 'invalid' AND source_url LIKE 'http%'").all(kind) : database().prepare("SELECT * FROM knowledge_items WHERE publication = 'published' AND status != 'invalid' AND source_url LIKE 'http%'").all()) as KnowledgeRow[];
   return rows.map(parse);
 }
 

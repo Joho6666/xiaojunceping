@@ -11,6 +11,8 @@
     "test": "npm run test:reports",
     "test:reports": "tsx scripts/validateReports.ts",
     "test:knowledge": "tsx scripts/testKnowledge.ts",
+    "test:knowledge-coverage": "tsx scripts/testKnowledgeCoverage.ts",
+    "test:local-discovery": "tsx scripts/testLocalDiscovery.ts",
     "test:customization": "tsx scripts/testCustomization.ts",
     "test:prompt": "tsx scripts/testPrompt.ts",
     "test:discovery": "tsx scripts/testDiscovery.ts",

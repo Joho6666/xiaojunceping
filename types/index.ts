@@ -154,6 +154,8 @@ export interface EcosystemRecommendation {
   reason: string;
   capabilities: string[];
   access: string;
+  pricing?: string;
+  pricingDetails?: KnowledgeItem["pricingDetails"];
 }
 export interface KnowledgeItem {
   id: string;

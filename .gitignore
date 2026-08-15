@@ -1,7 +1,16 @@
 .next/
 node_modules/
-.env*.local
+.env
+.env.*
+!.env.example
 .agentscope/
 *.log
 *.tsbuildinfo
 outputs/
+generated/
+history/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal

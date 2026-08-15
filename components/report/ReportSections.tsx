@@ -400,6 +400,12 @@ export function Ecosystem({ r }: { r: ProjectReport }) {
               <strong>接入方式：</strong>
               {item.access}
             </p>
+            {item.pricing && (
+              <p>
+                <strong>成本：</strong>
+                {item.pricing}
+              </p>
+            )}
             {item.url && (
               <a
                 className="text-link"
@@ -637,7 +643,7 @@ export function Risks({ r }: { r: ProjectReport }) {
         <details className="risk-detail" key={`${x.title}-${i}`}>
           <summary>
             <span
-              className={`status-chip ${x.level.includes("高") ? "bad" : "warn"}`}
+              className={`status-chip ${typeof x.level === "string" && x.level.includes("高") ? "bad" : "warn"}`}
             >
               {x.level}
             </span>

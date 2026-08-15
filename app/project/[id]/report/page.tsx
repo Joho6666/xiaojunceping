@@ -43,9 +43,11 @@ export default function ReportPage() {
     [drawer, setDrawer] = useState<GithubProjectRecommendation | null>(null),
     [toast, setToast] = useState("");
   const discoveryRef = useRef("");
+  const reportFetchRef = useRef("");
   const view = app.reportView || app.project?.evaluationMode || "quick";
   useEffect(() => {
-    if (!app.hydrated || app.report || !app.project || String(params.id) !== app.project.id) return;
+    if (!app.hydrated || !app.project || String(params.id) !== app.project.id || reportFetchRef.current === String(params.id)) return;
+    reportFetchRef.current = String(params.id);
     fetch(`/api/projects/${params.id}/report`).then(async (response) => {
       if (!response.ok) return;
       const data = await response.json() as { report?: ProjectReport };
@@ -122,7 +124,9 @@ export default function ReportPage() {
   }
   // Older persisted reports predate projectIdea. Reattach the current project
   // context so domain filtering remains correct after a refresh or migration.
-  const staleTokenEstimate = r.estimates.tokens.display.includes("本次实际");
+  // Older persisted reports may have a partial estimate object. Treat that as
+  // stale instead of calling string methods on missing legacy fields.
+  const staleTokenEstimate = typeof r.estimates.tokens.display === "string" && r.estimates.tokens.display.includes("本次实际");
   const reportWithContext = {
     ...r,
     projectIdea: r.projectIdea || app.project.idea,
