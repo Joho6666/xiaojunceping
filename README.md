@@ -4,6 +4,10 @@ AgentScope 是一个面向真实项目的 AI 方案评估与执行规划平台�
 
 它解决的是“这个项目应该用什么模型、Agent、Skill、MCP 和开源项目”的落地问题，而不是只生成一段泛泛的 AI 建议。报告会把已核验来源、知识库快照、实时搜索结果、推测建议和人工确认节点分开显示。
 
+![AgentScope 从项目想法到可执行方案](assets/agentscope-homepage-illustrations/01-project-idea-to-executable-plan.png)
+
+上图展示 AgentScope 的核心工作方式：把项目想法、访谈信息和已有知识交给需求画像与知识库，再经过来源核验、规则筛选和能力匹配，生成项目专属的模型、Agent、Skill、MCP、Workflow、报告与 Prompt。图中的内容用于解释产品流程，不代表固定的模型或工具组合。
+
 ## 产品预览
 
 下面的截图来自 AgentScope 的实际界面，按“输入项目 → 配置能力 → 分析 → 生成执行方案”的使用路径展示。截图中的项目内容是演示数据，Provider、模型、成本与外部来源以用户实际配置和最新核验结果为准。
