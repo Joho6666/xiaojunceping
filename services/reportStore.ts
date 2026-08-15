@@ -8,7 +8,8 @@ function database() {
   if (db) return db;
   const dir = path.join(process.cwd(), ".agentscope");
   fs.mkdirSync(dir, { recursive: true });
-  db = new Database(path.join(dir, "knowledge.sqlite"));
+  // 报告独立存储：与知识库（knowledge.sqlite）分离，避免「重置知识库」连带删除历史报告。
+  db = new Database(path.join(dir, "reports.sqlite"));
   db.exec("CREATE TABLE IF NOT EXISTS project_reports (project_id TEXT PRIMARY KEY, report_json TEXT NOT NULL, updated_at TEXT NOT NULL)");
   return db;
 }

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const parsed = JSON.parse(await file.text()) as unknown;
     const entries = Array.isArray(parsed) ? parsed : [parsed];
     if (entries.some(containsSensitiveField)) return NextResponse.json({ error: "导入文件包含疑似密钥或 Token 字段，请删除敏感信息后再导入" }, { status: 400 });
-    const safe = entries.filter(valid).map((entry) => ({ ...entry, publication: "pending" as const, status: "active" as const, confidence: entry.confidence || "低" as const, updatedAt: entry.updatedAt || new Date().toISOString(), verifiedAt: undefined }));
+    const safe = entries.filter(valid).map((entry) => ({ ...entry, sourceType: entry.sourceType || "community" as const, publication: "pending" as const, status: "active" as const, confidence: entry.confidence || "低" as const, updatedAt: entry.updatedAt || new Date().toISOString(), verifiedAt: undefined }));
     if (!safe.length) return NextResponse.json({ error: "文件中没有可导入的知识条目，必须包含名称、类别、摘要、数组字段和 sourceUrl" }, { status: 400 });
     safe.forEach((entry) => upsertKnowledgeItem(entry));
     return NextResponse.json({ imported: safe.length, message: "已导入待确认条目，确认发布前不会参与推荐" });
