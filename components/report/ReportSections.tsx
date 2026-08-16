@@ -91,15 +91,25 @@ export function Strategy({ r }: { r: ProjectReport }) {
         ))}
       </div>
       <div className="alternative-detail">
-        <strong>{r.alternatives[s].strategy}</strong>
-        <p>{r.alternatives[s].description}</p>
-        <div className="fact-row">
-          <span>时间 {r.alternatives[s].time}</span>
-          <span>Token {r.alternatives[s].tokens}</span>
-          <span>成本 {r.alternatives[s].cost}</span>
-          <span>风险 {r.alternatives[s].risk}</span>
-          <span>自由度 {r.alternatives[s].freedom}</span>
-        </div>
+        {(() => {
+          // Older persisted reports may have an empty alternatives array while
+          // the tab index stays at 0; index access then yields undefined.
+          const alt = r.alternatives[s] ?? r.alternatives[0];
+          if (!alt) return null;
+          return (
+            <>
+              <strong>{alt.strategy}</strong>
+              <p>{alt.description}</p>
+              <div className="fact-row">
+                <span>时间 {alt.time}</span>
+                <span>Token {alt.tokens}</span>
+                <span>成本 {alt.cost}</span>
+                <span>风险 {alt.risk}</span>
+                <span>自由度 {alt.freedom}</span>
+              </div>
+            </>
+          );
+        })()}
       </div>
     </ReportSection>
   );
@@ -311,8 +321,8 @@ export function Models({
                 <span key={k}>
                   {ratingLabel(k)}{" "}
                   <b>
-                    {"★".repeat(v)}
-                    {"☆".repeat(5 - v)}
+                    {"★".repeat(Math.max(0, Math.min(5, Math.round(v))))}
+                    {"☆".repeat(Math.max(0, 5 - Math.min(5, Math.round(v))))}
                   </b>
                 </span>
               ))}
@@ -575,7 +585,7 @@ export function Estimates({ r }: { r: ProjectReport }) {
             <strong>{x.display}</strong>
             <p>{x.range}</p>
             <Confidence level={x.confidence} />
-            {x.breakdown.map((b) => (
+            {(x.breakdown || []).map((b) => (
               <div className="understood-row" key={b.label}>
                 <span>{b.label}</span>
                 <b>{b.value}</b>
@@ -786,7 +796,7 @@ export function ModelCompare({
                   {Object.values(x.ratings).map((v, i) => (
                     <td key={i}>{v}/5</td>
                   ))}
-                  <td>{"$".repeat(x.pricingLevel)}</td>
+                  <td>{"$".repeat(Math.max(0, Math.min(5, x.pricingLevel)))}</td>
                   <td>
                     <b>{x.matchScore}%</b>
                   </td>
