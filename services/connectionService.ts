@@ -171,10 +171,16 @@ export function listConnections() {
 }
 export async function checkProviderCLI(provider: ProviderId, model?: string) {
   const status = provider === "openai" ? await codexCliAdapter.healthCheck() : await checkCLI(provider);
-  if (provider === "openai" && status.available && status.authenticated && model?.trim()) {
+  if (provider === "openai" && model?.trim()) {
+    // The model string is later passed as a CLI argument. Validate it even
+    // when the CLI is installed but not logged in — otherwise an unchecked
+    // value would be stored on the connection and reach the command line.
+    if (!/^[\w.-]+$/.test(model.trim())) {
+      return { connection: null, health: { ...status, available: false, message: "模型 ID 只能包含字母、数字、点、下划线和连字符。" } };
+    }
     try {
       const models = await listCodexModels();
-      if (!models.some((item) => item.id === model.trim())) {
+      if (models.length && !models.some((item) => item.id === model.trim())) {
         return { connection: null, health: { ...status, available: false, message: `模型 ${model.trim()} 不在当前 Codex CLI 可用列表中，请重新选择。`, availableModels: models } };
       }
     } catch {

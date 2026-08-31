@@ -30,7 +30,12 @@ export function AppProvider({children}:{children:React.ReactNode}) {
       const rawHistory = localStorage.getItem(HISTORY_KEY);
       if (rawHistory) {
         const parsedHistory = JSON.parse(rawHistory) as HistoryEntry[];
-        if (Array.isArray(parsedHistory)) setHistory(parsedHistory.filter((entry) => entry?.project?.id && typeof entry.project.idea === 'string'));
+        // Persisted history may predate the current kind enum; normalize like
+        // the main-state restore above so consumers can rely on project.kind.
+        const kinds = ['video','web','cad','pcb','automation','general'];
+        if (Array.isArray(parsedHistory)) setHistory(parsedHistory
+          .filter((entry) => entry?.project?.id && typeof entry.project.idea === 'string')
+          .map((entry) => ({ ...entry, project: { ...entry.project, kind: kinds.includes(entry.project.kind) ? entry.project.kind : 'general' } })));
       }
     } catch { localStorage.removeItem(KEY); localStorage.removeItem('agentscope:state:v2'); }
     finally { setHydrated(true); }

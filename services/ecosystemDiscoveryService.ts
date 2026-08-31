@@ -199,7 +199,7 @@ export async function discoverEcosystem(
       capabilities: [String(item.language || "代码")],
       access: "GitHub 公开仓库",
     }));
-  const all = [...byKind[project.kind], ...common, ...live];
+  const all = [...(byKind[project.kind] || byKind.general), ...common, ...live];
   return all
     .filter(
       (item, index, items) =>

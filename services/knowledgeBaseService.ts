@@ -88,6 +88,13 @@ const baseSeed: KnowledgeItem[] = [
   { id: "official-deepseek", kind: "llm", name: "DeepSeek", vendor: "DeepSeek", summary: "适合中文需求理解、研究规划和结构化评估。", url: "https://platform.deepseek.com/", capabilities: ["中文", "推理", "结构化 JSON"], tags: ["llm", "中文", "reasoning"], stack: ["API"], platforms: ["Cloud"], access: "API Key", pricing: "按 Token", sourceType: "official", sourceUrl: "https://platform.deepseek.com/api-docs/", updatedAt: "2026-08-01", confidence: "高", publication: "published", status: "active" },
 ];
 const seed: KnowledgeItem[] = [...baseSeed, ...expandedKnowledgeCatalog, ...additionalKnowledgeCatalog, ...modelKnowledgeCatalog, ...knowledgeCatalogExpansion];
+// 多个目录来源可能意外引入相同 id；去重保证全新库初始化不会触发主键冲突
+const seenIds = new Set<string>();
+const uniqueSeed = seed.filter((item) => {
+  if (seenIds.has(item.id)) return false;
+  seenIds.add(item.id);
+  return true;
+});
 
 function parse(row: KnowledgeRow): KnowledgeItem {
   const raw = row as KnowledgeRow & Record<string, unknown>;
@@ -134,8 +141,8 @@ function bind(item: KnowledgeItem) {
 function seedIfEmpty(database: Database.Database) {
   const count = database.prepare("SELECT COUNT(*) as count FROM knowledge_items").get() as { count: number };
   if (count.count) return;
-  const insert = database.prepare(`INSERT INTO knowledge_items (id,kind,name,vendor,version,summary,url,github_url,capabilities,tags,stack,platforms,license,access,pricing,source_type,source_url,updated_at,verified_at,confidence,publication,status,model_id,context_window,max_output,modalities,model_capabilities,lifecycle,aliases,pricing_details,source_updated_at) VALUES (@id,@kind,@name,@vendor,@version,@summary,@url,@githubUrl,@capabilities,@tags,@stack,@platforms,@license,@access,@pricing,@sourceType,@sourceUrl,@updatedAt,@verifiedAt,@confidence,@publication,@status,@modelId,@contextWindow,@maxOutput,@modalities,@modelCapabilities,@lifecycle,@aliases,@pricingDetails,@sourceUpdatedAt)`);
-  const transaction = database.transaction(() => seed.forEach((item) => insert.run(bind(item))));
+  const insert = database.prepare(`INSERT INTO knowledge_items (id,kind,name,vendor,version,summary,url,github_url,capabilities,tags,stack,platforms,license,access,pricing,source_type,source_url,updated_at,verified_at,confidence,publication,status,model_id,context_window,max_output,modalities,model_capabilities,lifecycle,aliases,pricing_details,source_updated_at) VALUES (@id,@kind,@name,@vendor,@version,@summary,@url,@githubUrl,@capabilities,@tags,@stack,@platforms,@license,@access,@pricing,@sourceType,@sourceUrl,@updatedAt,@verifiedAt,@confidence,@publication,@status,@modelId,@contextWindow,@maxOutput,@modalities,@modelCapabilities,@lifecycle,@aliases,@pricingDetails,@sourceUpdatedAt) ON CONFLICT(id) DO UPDATE SET name=@name,vendor=@vendor,version=@version,summary=@summary,url=@url,github_url=@githubUrl,capabilities=@capabilities,tags=@tags,stack=@stack,platforms=@platforms,license=@license,access=@access,pricing=@pricing,source_type=@sourceType,source_url=@sourceUrl,updated_at=@updatedAt,verified_at=@verifiedAt,confidence=@confidence,publication=@publication,status=@status,model_id=@modelId,context_window=@contextWindow,max_output=@maxOutput,modalities=@modalities,model_capabilities=@modelCapabilities,lifecycle=@lifecycle,aliases=@aliases,pricing_details=@pricingDetails,source_updated_at=@sourceUpdatedAt`);
+  const transaction = database.transaction(() => uniqueSeed.forEach((item) => insert.run(bind(item))));
   transaction();
 }
 

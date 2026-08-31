@@ -37,28 +37,44 @@ export default function AISettings() {
   const [capabilityEndpoint, setCapabilityEndpoint] = useState<Record<string, string>>({});
   const router = useRouter();
   const load = async () => {
-    const response = await fetch("/api/connections");
-    if (response.ok) setConnections((await response.json()).connections);
-    const capabilityResponse = await fetch("/api/capabilities");
-    if (capabilityResponse.ok) setCapabilityConnections((await capabilityResponse.json()).capabilities);
+    try {
+      const response = await fetch("/api/connections");
+      if (response.ok) setConnections((await response.json()).connections);
+      const capabilityResponse = await fetch("/api/capabilities");
+      if (capabilityResponse.ok) setCapabilityConnections((await capabilityResponse.json()).capabilities);
+    } catch {
+      setMessage("连接状态加载失败，请刷新页面重试。");
+    }
   };
   const saveCapabilityConfig = async (id: CapabilityId) => {
     setBusy(id);
-    const response = await fetch("/api/capabilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, secret: capabilitySecret[id], endpoint: capabilityEndpoint[id] }) });
-    const data = await response.json();
-    setMessage(response.ok ? `${data.capability.name} 配置已保存，请点击测试连接。` : `配置失败：${data.error || "未知错误"}`);
-    if (response.ok) { setCapabilitySecret((current) => ({ ...current, [id]: "" })); await load(); }
-    setBusy("");
+    try {
+      const response = await fetch("/api/capabilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, secret: capabilitySecret[id], endpoint: capabilityEndpoint[id] }) });
+      const data = await response.json();
+      setMessage(response.ok ? `${data.capability.name} 配置已保存，请点击测试连接。` : `配置失败：${data.error || "未知错误"}`);
+      if (response.ok) { setCapabilitySecret((current) => ({ ...current, [id]: "" })); await load(); }
+    } catch {
+      setMessage("配置保存失败，请检查网络后重试。");
+    } finally {
+      setBusy("");
+    }
   };
   const testCapability = async (id: CapabilityId) => {
     setBusy(id);
-    const response = await fetch(`/api/capabilities/${id}/test`, { method: "POST" });
-    const data = await response.json();
-    setMessage(data.message || "能力测试完成");
-    await load();
-    setBusy("");
+    try {
+      const response = await fetch(`/api/capabilities/${id}/test`, { method: "POST" });
+      const data = await response.json();
+      setMessage(data.message || "能力测试完成");
+      await load();
+    } catch {
+      setMessage("能力测试失败，请稍后重试。");
+    } finally {
+      setBusy("");
+    }
   };
-  const removeCapability = async (id: CapabilityId) => { await fetch(`/api/capabilities/${id}`, { method: "DELETE" }); await load(); setMessage("能力配置已移除"); };
+  const removeCapability = async (id: CapabilityId) => {
+    try { await fetch(`/api/capabilities/${id}`, { method: "DELETE" }); await load(); setMessage("能力配置已移除"); } catch { setMessage("能力配置移除失败，请重试。"); }
+  };
   useEffect(() => {
     load();
     fetch("/api/connections/provider/openai/cli/models")
@@ -103,34 +119,39 @@ export default function AISettings() {
   };
   const connectKey = async (provider: ProviderId) => {
     setBusy(provider);
-    const response = await fetch("/api/connections", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider,
-        apiKey: apiKey[provider] || "",
-        baseUrl: baseUrl[provider],
-        model: model[provider],
-      }),
-    });
-    const data = await response.json();
-    setMessage(
-      response.ok
-        ? `${provider} API 已保存，正在验证连接…`
-        : data.error === "API_KEY_REQUIRED"
-          ? "请输入 API Key"
-          : data.error === "API_KEY_INVALID_FORMAT"
-            ? "这不是有效的 API Key。请勿把模型 ID 填入 Key 输入框。"
-          : data.error === "BASE_URL_REQUIRED"
-            ? "自定义供应商必须填写 Base URL。"
-          : `连接失败：${data.error}`,
-    );
-    if (response.ok) {
-      setApiKey((x) => ({ ...x, [provider]: "" }));
-      await load();
-      await test(data.connection.id);
+    try {
+      const response = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          apiKey: apiKey[provider] || "",
+          baseUrl: baseUrl[provider],
+          model: model[provider],
+        }),
+      });
+      const data = await response.json();
+      setMessage(
+        response.ok
+          ? `${provider} API 已保存，正在验证连接…`
+          : data.error === "API_KEY_REQUIRED"
+            ? "请输入 API Key"
+            : data.error === "API_KEY_INVALID_FORMAT"
+              ? "这不是有效的 API Key。请勿把模型 ID 填入 Key 输入框。"
+            : data.error === "BASE_URL_REQUIRED"
+              ? "自定义供应商必须填写 Base URL。"
+              : `连接失败：${data.error}`,
+      );
+      if (response.ok) {
+        setApiKey((x) => ({ ...x, [provider]: "" }));
+        await load();
+        await test(data.connection.id);
+      }
+    } catch {
+      setMessage("连接保存失败，请检查网络后重试。");
+    } finally {
+      setBusy("");
     }
-    setBusy("");
   };
   async function test(id: string) {
     setBusy(id);
@@ -148,18 +169,26 @@ export default function AISettings() {
     }
   }
   const oauth = async (provider: ProviderId) => {
-    const response = await fetch(
-      `/api/connections/provider/${provider}/oauth/start`,
-    );
-    const data = await response.json();
-    setMessage(
-      data.message || "当前暂不支持网页 OAuth，请使用本地 CLI 或 API Key。",
-    );
+    try {
+      const response = await fetch(
+        `/api/connections/provider/${provider}/oauth/start`,
+      );
+      const data = await response.json();
+      setMessage(
+        data.message || "当前暂不支持网页 OAuth，请使用本地 CLI 或 API Key。",
+      );
+    } catch {
+      setMessage("OAuth 状态查询失败，请稍后重试。");
+    }
   };
   const remove = async (id: string) => {
-    await fetch(`/api/connections/${id}`, { method: "DELETE" });
-    await load();
-    setMessage("连接已断开");
+    try {
+      await fetch(`/api/connections/${id}`, { method: "DELETE" });
+      await load();
+      setMessage("连接已断开");
+    } catch {
+      setMessage("断开连接失败，请重试。");
+    }
   };
   return (
     <main>

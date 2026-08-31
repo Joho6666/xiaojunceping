@@ -15,7 +15,7 @@ function flattenAnswers(answers: Record<string, AnswerValue>) {
 
 export function extractRequirementProfile(project: Project, answers: Record<string, AnswerValue> = {}): RequirementProfile {
   const text = `${project.idea} ${flattenAnswers(answers)}`.toLowerCase();
-  const base = byKind[project.kind];
+  const base = byKind[project.kind] || byKind.general;
   const capabilities = [...base.capabilities];
   const tags = [...base.tags];
   const stack: string[] = [];

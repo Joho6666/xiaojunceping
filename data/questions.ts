@@ -21,4 +21,4 @@ const dynamic:Record<ProjectKind,InterviewQuestion[]>={
  web:['是否需要账号系统？','是否需要支付？','是否有后台？','是否需要 SEO？','是否需要移动端适配？'].map((title,i)=>({id:`web-${i}`,title,type:'single-choice',category:'Web 能力',dynamic:'web',options:yes})),
  automation:['需要连接哪些应用？','工作流由什么事件触发？','失败时如何处理？'].map((title,i)=>({id:`automation-${i}`,title,type:'text',category:'自动化能力',dynamic:'automation'})),general:[]};
 export function detectProjectKind(idea:string):ProjectKind{const s=idea.toLowerCase();if(/视频|tiktok|剪辑|短视频|ffmpeg/.test(s))return'video';if(/solidworks|cad|建模|3d打印|cnc/.test(s))return'cad';if(/pcb|电路板|原理图|gerber|stm32/.test(s))return'pcb';if(/网站|saas|web|网页|平台/.test(s))return'web';if(/自动化|工作流|邮件|n8n|workflow/.test(s))return'automation';return'general'}
-export function getQuestions(kind:ProjectKind){return[...base,...dynamic[kind]]}
+export function getQuestions(kind:ProjectKind){return[...base,...(dynamic[kind]||dynamic.general)]}
