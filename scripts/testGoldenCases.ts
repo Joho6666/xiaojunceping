@@ -42,7 +42,7 @@ for (const testCase of goldenCases) {
     assert.ok((profile.domains || []).some((item) => item.name === domain) || profile.domain.includes(domain) || blob.includes(domain), `${testCase.id} missing domain ${domain}`);
   }
   assert.equal(report.generationMode, "live");
-  assert.equal(report.evaluationEngineVersion, "v2.0.0");
+  assert.equal(report.evaluationEngineVersion, "v2.1.0");
   assert.equal(report.models[0]?.roleKind, "evaluator");
 }
 console.log(`golden evaluation cases passed: ${goldenCases.length}`);

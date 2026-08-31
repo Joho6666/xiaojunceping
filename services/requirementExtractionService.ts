@@ -1,2 +1,3 @@
-export { extractRequirementProfile } from "./requirements/extractor";
-export { classifyDomains, primaryKindFromDomains } from "./requirements/classifier";
+export { extractRequirementProfile, analyzeRequirements } from "./requirements/extractor";
+export { classifyDomains, primaryKindFromDomains, detectProjectKindFromText } from "./requirements/classifier";
+export { scoreRequirementCompleteness } from "./requirements/completeness";

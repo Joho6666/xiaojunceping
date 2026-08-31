@@ -42,9 +42,24 @@ export function Conclusion({ r }: { r: ProjectReport }) {
           <p>{r.projectSummary.summary}</p>
         </div>
         <div className="decision-score">
-          <strong>{r.projectSummary.score}</strong>
-          <span>/ 100</span>
+          <strong>{r.evidenceConfidenceScore === "unknown" || r.evidenceConfidenceScore == null ? "—" : r.evidenceConfidenceScore}</strong>
+          <span>证据可信度</span>
         </div>
+      </div>
+      <div className="metric-grid">
+        {[
+          ["可行性", r.feasibilityScore],
+          ["方案质量", r.solutionQualityScore],
+          ["证据可信度", r.evidenceConfidenceScore],
+          ["需求完整度", r.requirementCompleteness == null ? "unknown" : Math.round(r.requirementCompleteness * 100)],
+          ["Ready", r.readiness || "unknown"],
+          ["计划版本", r.planVersion ?? "unknown"],
+        ].map(([label, value]) => (
+          <div className="metric card" key={String(label)}>
+            <label>{label}</label>
+            <strong>{value === "unknown" || value === 0 ? "暂无足够证据" : String(value)}</strong>
+          </div>
+        ))}
       </div>
       <div className="metric-grid">
         {r.scores.map((x) => (

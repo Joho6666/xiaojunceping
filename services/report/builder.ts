@@ -17,6 +17,7 @@ import { estimateTime } from "../estimation/timeEstimator";
 import { estimateCost } from "../estimation/costEstimator";
 import { mergeEvidence } from "../evidence/evidenceStore";
 import { buildAgentPlan, applyAgentPlanToReport, buildPromptArtifacts } from "../reportCustomizationService";
+import { assessReadiness } from "../evaluation/readinessGate";
 
 export function buildLiveReport(input: {
   project: Project;
@@ -51,9 +52,12 @@ export function buildLiveReport(input: {
   if (cost.display === "unknown") unknownFields.push("cost");
   if (time.range === "insufficient_evidence") unknownFields.push("time");
 
+  const feasibility = githubProjects.length || (profile.requiredFeatures || []).length ? Math.round((confidence.details.architecture?.score || 0) * 100) : "unknown";
+  const quality = (profile.requiredFeatures || []).length ? Math.round(((confidence.details.tools?.score || 0) * 50 + (confidence.details.architecture?.score || 0) * 50)) : "unknown";
+  const evidenceConfidence = Math.round((confidence.details.requirement?.score || 0) * 40 + (confidence.details.github?.score || 0) * 60);
   let report: ProjectReport = {
     id: project.id,
-    projectKind: project.kind,
+    projectKind: profile.projectKind,
     projectIdea: project.idea,
     projectSummary: {
       title,
@@ -62,7 +66,7 @@ export function buildLiveReport(input: {
       audience: profile.userType || "未确认",
       summary: input.llmSummary?.summary || `${project.idea}。本报告只使用已核验来源、知识库和可解释评分；证据不足的字段标记为 unknown。`,
       verdict: input.llmSummary?.verdict || (githubProjects.length ? "可行，但需先核验未知项再施工" : "证据不足，不能给出强结论"),
-      score: Math.round(((confidence.details.requirement?.score || 0) * 40 + (confidence.details.github?.score || 0) * 30 + (confidence.details.architecture?.score || 0) * 30)),
+      score: typeof evidenceConfidence === "number" ? evidenceConfidence : 0,
       status: unknownFields.length ? "needs_confirmation" : "ready",
       acceptanceCriteria: profile.acceptanceCriteria || [],
     },
@@ -146,7 +150,14 @@ export function buildLiveReport(input: {
     executionModels: models.models.filter((item) => item.roleKind === "execution").slice(0, 4).map((item) => ({ role: item.task, provider: item.provider, model: item.modelId })),
     confidenceDetails: confidence.details,
     criticNotes: input.criticNotes || [],
+    feasibilityScore: feasibility,
+    solutionQualityScore: quality,
+    evidenceConfidenceScore: evidenceConfidence,
+    requirementCompleteness: profile.completeness?.score,
+    estimateMethod: "heuristic-v1",
+    planVersion: 1,
   };
+  report.readiness = assessReadiness(profile, report);
   const agentPlan = buildAgentPlan(project, profile, report, models.models.find((item) => item.roleKind === "execution")?.modelId || evaluator.model);
   report.agentPlan = agentPlan;
   report = { ...report, ...applyAgentPlanToReport(report, agentPlan) };

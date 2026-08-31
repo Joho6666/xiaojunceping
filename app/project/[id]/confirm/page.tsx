@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApp, newJob } from "../../../../components/AppProvider";
 import { getRequirementPreview } from "../../../../services/projectService";
+import { extractRequirementProfile } from "../../../../services/requirements/extractor";
 export default function Confirm() {
   const app = useApp(),
     router = useRouter(),
@@ -25,6 +26,7 @@ export default function Confirm() {
     );
   if (!app.project || !preview)
     return <div className="content">未找到项目。</div>;
+  const completeness = Math.round((extractRequirementProfile(app.project, app.answers).completeness?.score || 0) * 100);
   const value = (id: string, fallback: string) => {
     const v = app.answers[id];
     return Array.isArray(v) ? v.join("、") : v || fallback;
@@ -54,9 +56,9 @@ export default function Confirm() {
             <div className="card summary-card score-big">
               <span>需求完整度</span>
               <strong>
-                92<small>%</small>
+                {completeness}<small>%</small>
               </strong>
-              <span>已具备分析条件</span>
+              <span>{completeness >= 55 ? "可进入分析" : "建议先补关键问题"}</span>
             </div>
           </div>
           <div className="param-grid">

@@ -39,7 +39,20 @@ export type DomainName =
   | "education"
   | "productivity"
   | "developer-tool";
-export const EVALUATION_ENGINE_VERSION = "v2.0.0";
+export const EVALUATION_ENGINE_VERSION = "v2.1.0";
+export type VerificationStatus = "verified" | "partially_verified" | "unverified" | "failed";
+export type SourceClass = "official" | "github" | "community" | "documentation" | "pricing" | "blog" | "registry" | "unknown";
+export type ProjectReadiness = "not_ready" | "research_ready" | "prototype_ready" | "development_ready" | "production_ready" | "needs_clarification" | "blocked";
+export interface IntegrationRequirement {
+  type: string;
+  target: string;
+}
+export interface RequirementCompleteness {
+  score: number;
+  missingFields: string[];
+  blockingQuestions: string[];
+  optionalQuestions: string[];
+}
 export interface Evidence {
   id: string;
   type: EvidenceType;
@@ -49,6 +62,10 @@ export interface Evidence {
   verifiedAt?: string;
   confidence: "high" | "medium" | "low";
   note?: string;
+  verificationStatus?: VerificationStatus;
+  verifiedFields?: string[];
+  unverifiedFields?: string[];
+  sourceClass?: SourceClass;
 }
 export interface DomainScore {
   name: DomainName;
@@ -299,6 +316,10 @@ export interface RequirementProfile {
   numberOfFeatures?: number;
   numberOfIntegrations?: number;
   numberOfPlatforms?: number;
+  integrations?: IntegrationRequirement[];
+  completeness?: RequirementCompleteness;
+  primaryDomain?: DomainName;
+  legacyKind?: ProjectKind;
 }
 export interface KnowledgeMatch {
   item: KnowledgeItem;
@@ -508,6 +529,15 @@ export interface ProjectReport {
   executionModels?: Array<{ role: string; provider: string; model: string }>;
   confidenceDetails?: Record<string, ConfidenceDimension>;
   criticNotes?: string[];
+  feasibilityScore?: number | "unknown";
+  solutionQualityScore?: number | "unknown";
+  evidenceConfidenceScore?: number | "unknown";
+  requirementCompleteness?: number;
+  readiness?: ProjectReadiness;
+  blockingIssues?: string[];
+  planVersion?: number;
+  estimateMethod?: string;
+  clarificationQuestions?: string[];
 }
 export interface QuickReportView {
   title: string;

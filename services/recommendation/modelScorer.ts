@@ -5,7 +5,7 @@ import { createEvidence } from "../evidence/evidenceStore";
 export function scoreExecutionModels(profile: RequirementProfile, evaluator: { provider: string; model: string }): { models: ModelRecommendation[]; evidence: Evidence[] } {
   const items = listKnowledgeItems("llm");
   const needVision = /video|image|vision/.test(profile.tags.join(" "));
-  const needCode = profile.needsTerminal || profile.domain.includes("developer-tool") || profile.projectKind !== "video";
+  const needCode = Boolean(profile.needsTerminal || profile.domain.includes("developer-tool") || profile.domain.includes("embedded") || (profile.requiredFeatures || []).includes("firmware"));
   const evidence: Evidence[] = [];
   const models = items
     .map((item, index) => {
@@ -48,11 +48,11 @@ export function scoreExecutionModels(profile: RequirementProfile, evaluator: { p
         evidenceIds: [ev.id],
         roleKind: "execution",
         ratings: {
-          reasoning: Math.min(5, 3 + (item.confidence === "高" ? 1 : 0)),
-          coding: needCode ? 4 : 3,
-          vision: modalities.includes("vision") ? 4 : 1,
-          video: modalities.includes("video") ? 4 : 1,
-          speed: 3,
+          reasoning: item.confidence === "高" ? 4 : 0,
+          coding: (item.modelCapabilities || []).some((cap) => /code|coding/i.test(cap)) ? 4 : 0,
+          vision: modalities.includes("vision") ? 4 : 0,
+          video: modalities.includes("video") ? 4 : 0,
+          speed: 0,
         },
         reason: reasons.join("；") || "知识库候选，尚未被证明为最佳执行模型",
       };

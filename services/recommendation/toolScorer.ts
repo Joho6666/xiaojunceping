@@ -25,7 +25,7 @@ export function scoreTools(profile: RequirementProfile) {
   const techStack: TechStackRecommendation[] = (profile.preferredStack?.length ? profile.preferredStack : profile.stack.length ? profile.stack : ["待确认技术栈"]).map((name, index) => ({
     layer: ["核心能力", "实现框架", "数据与集成", "验证与交付"][index] || "扩展",
     name,
-    matchScore: profile.stack.includes(name) ? 80 : 50,
+    matchScore: profile.stack.includes(name) ? 80 : 0,
     reasons: profile.stack.includes(name) ? ["出现在项目描述或访谈中"] : ["证据不足，需确认"],
     alternative: "需要结合现有仓库和预算确认",
     evidenceIds: [evidence.id],

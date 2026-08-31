@@ -44,6 +44,13 @@ jobs:
           npm run test:report-store
           npm run test:golden
           npm run test:live-integrity
+          npm run test:requirements
+          npm run test:retrieval
+          npm run test:ranking
+          npm run test:verification
+          npm run test:readiness
+          npm run test:traceability
+          npm run test:benchmark
 
       - name: Build
         run: npm run build --if-present

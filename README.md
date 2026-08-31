@@ -108,7 +108,7 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 
 `domain * 0.28 + featureOverlap * 0.24 + stackFit * 0.18 + maturity * 0.12 + maintainability * 0.12 + licenseFit * 0.06`
 
-知识库检索默认是 BM25 + 元数据过滤（`retrievalMode = lexical`）。只有配置了 Embedding Provider 才会变成 hybrid；没有向量模型时不会假装做语义搜索。
+知识库检索使用 corpus 级 BM25（N/df/avgDl）和中文 n-gram 切分。只有配置 `EMBEDDING_BASE_URL` + `EMBEDDING_API_KEY` + `EMBEDDING_MODEL` 时才会真正计算 cosine 并标记 `retrievalMode = hybrid`；否则 fail closed 为 lexical。
 
 评估模型（evaluator）和执行模型（executionModels）分开。用户选 Codex 来生成报告，不会自动把它写成“本项目最适合的开发模型”。
 
@@ -118,12 +118,12 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 
 ## Quick vs Expert
 
-- **Quick**：需求抽取 → 本地检索 → GitHub Top 5 → 单次评估上下文 → 报告。目标是低成本。
-- **Expert**：在 Quick 之上增加浏览器研究、独立 Critic 和 ReportVerifier。Critic 可以对架构/许可证/敏感数据提出反对意见。
+- **Quick**：需求抽取 → Completeness → 本地检索 → 可选 GitHub → 报告。
+- **Expert**：Requirement Gate。完整度不足时拦截 Architecture，只返回 3–5 个关键问题。通过后才做研究、Critic、Verifier 和 Readiness。
 
 ## Confidence
 
-置信度是分维度的：requirement / github / tools / models / cost / time / architecture，每一维都有 `score` 和 `reason`。例如成本置信度低，是因为缺少规模和调用频率，而不是因为“模型比较谦虚”。
+报告拆成三种分：**可行性**、**方案质量**、**证据可信度**。不再用一个 83 分同时表示能不能做和有多可信。`unknown` 显示「暂无足够证据」，不显示 0 或 50。估算方法标明 `heuristic-v1`。
 
 ## Known limitations
 
@@ -134,7 +134,7 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 
 ## Evaluation benchmark
 
-`tests/evaluation-cases/` 目前有 20 个黄金案例，覆盖 STM32、TikTok 剪辑、校园交友、波峰焊治具、电商、工业 Agent 等。CI 会跑 `test:golden` 和 `LIVE_REPORT_MUST_NOT_USE_MOCK`。
+`tests/evaluation-cases/` 目前有 50 个黄金案例。CI 额外跑 `test:requirements`、`test:retrieval`、`test:ranking`、`test:verification`、`test:readiness`、`test:traceability`、`test:benchmark`。
 
 ## 能力概览
 
