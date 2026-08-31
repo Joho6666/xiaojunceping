@@ -21,7 +21,7 @@ export interface LocalDiscoveryItem {
   sensitiveDataRead: false;
 }
 
-const home = () => process.env.USERPROFILE || os.homedir();
+const home = () => os.homedir();
 const exists = (target: string) => fs.existsSync(target);
 
 function confined(root: string, parts: string[]): string | null {
@@ -119,18 +119,9 @@ async function detectCli(command: string): Promise<LocalDiscoveryItem | null> {
   }
 }
 
-function confinedUnderHome(target: string | undefined, userHome: string): string | null {
-  if (!target || target.includes("..") || target.includes("\0")) return null;
-  const resolved = path.resolve(target);
-  const homeResolved = path.resolve(userHome);
-  const prefix = homeResolved.endsWith(path.sep) ? homeResolved : homeResolved + path.sep;
-  if (resolved !== homeResolved && !resolved.startsWith(prefix)) return null;
-  return resolved;
-}
-
 export async function discoverLocalCapabilities(): Promise<{ scannedAt: string; items: LocalDiscoveryItem[]; notes: string[] }> {
   const userHome = home();
-  const appData = confinedUnderHome(process.env.APPDATA, userHome) || confined(userHome, ["AppData", "Roaming"]);
+  const roaming = process.platform === "win32" ? confined(userHome, ["AppData", "Roaming"]) : null;
   const items = [
     ...scanSkillDirectory(confined(userHome, [".codex", "skills"]) || "", "Codex Skills"),
     ...scanSkillDirectory(confined(userHome, [".agents", "skills"]) || "", "Agents Skills"),
@@ -138,7 +129,7 @@ export async function discoverLocalCapabilities(): Promise<{ scannedAt: string; 
     ...parseMcpConfig(confined(userHome, [".cursor", "mcp.json"]) || "", "Cursor MCP"),
     ...parseMcpConfig(confined(userHome, [".claude.json"]) || "", "Claude MCP"),
     ...parseMcpConfig(confined(userHome, [".vscode", "mcp.json"]) || "", "VS Code MCP"),
-    ...parseMcpConfig((appData && confined(appData, ["Claude", "claude_desktop_config.json"])) || "", "Claude Desktop MCP"),
+    ...parseMcpConfig((roaming && confined(roaming, ["Claude", "claude_desktop_config.json"])) || "", "Claude Desktop MCP"),
   ];
   for (const command of ["codex", "claude", "gemini", "trae", "zcode", "dsh"]) {
     const detected = await detectCli(command);
