@@ -25,7 +25,7 @@ let db: Database.Database | null = null;
 
 function database() {
   if (db) return db;
-  const dir = path.join(process.cwd(), ".agentscope");
+  const dir = process.env.AGENTSCOPE_DIR || path.join(process.cwd(), ".agentscope");
   fs.mkdirSync(dir, { recursive: true });
   db = new Database(path.join(dir, "knowledge.sqlite"));
   db.pragma("journal_mode = WAL");
