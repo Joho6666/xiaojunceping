@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { AnswerValue, Project, ProjectReport } from "../types";
+import { AnswerValue, Project, ProjectReport, TraceabilityPlan } from "../types";
 
 let db: Database.Database | null = null;
 
@@ -31,6 +31,13 @@ function database() {
       report_id TEXT,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS plan_snapshots (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      plan_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -54,6 +61,27 @@ export function saveEvaluationRun(project: Project, report: ProjectReport) {
       report.id,
       report.generatedAt,
     );
+}
+
+export function getPreviousPlan(projectId: string): TraceabilityPlan | null {
+  try {
+    const row = database()
+      .prepare("SELECT plan_json FROM plan_snapshots WHERE project_id = ? ORDER BY version DESC LIMIT 1")
+      .get(projectId) as { plan_json?: string } | undefined;
+    return row?.plan_json ? JSON.parse(row.plan_json) as TraceabilityPlan : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePlanSnapshot(projectId: string, version: number, plan: TraceabilityPlan) {
+  try {
+    database()
+      .prepare("INSERT INTO plan_snapshots (id, project_id, version, plan_json, created_at) VALUES (?, ?, ?, ?, ?)")
+      .run(crypto.randomUUID(), projectId, version, JSON.stringify(plan), new Date().toISOString());
+  } catch {
+    /* ignore duplicate snapshot errors */
+  }
 }
 
 export function nextPlanVersion(projectId: string) {

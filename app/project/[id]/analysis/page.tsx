@@ -8,25 +8,6 @@ import {
 } from "../../../../services/analysisService";
 import { AnalysisJob } from "../../../../types";
 
-const discoveries = {
-  video: ["正在按视频/字幕需求检索知识库", "正在核验可打开的参考来源", "尚未完成前不填写仓库数量"],
-  cad: ["正在按 CAD/制造约束检索", "正在核验几何与出图相关条目", "尚未完成前不填写项目数量"],
-  pcb: ["正在按原理图/Gerber 检索", "正在核验硬件工具条目", "尚未完成前不填写方案数量"],
-  web: ["正在按 Web/账号需求检索知识库", "正在核验可打开的参考来源", "尚未完成前不填写 Starter 数量"],
-  automation: ["正在按工作流/Webhook 检索", "正在核验自动化工具条目", "尚未完成前不填写集成数量"],
-  general: ["正在检索本地知识库", "正在核验来源链接", "数量以最终报告为准"],
-};
-const quickStatuses: AnalysisJob["status"][] = [
-  "queued",
-  "understanding",
-  "researching",
-  "matching",
-  "matching",
-  "estimating",
-  "estimating",
-  "generating",
-];
-
 export default function Analysis() {
   const app = useApp(),
     router = useRouter(),
@@ -59,115 +40,68 @@ export default function Analysis() {
         : app.analysisJob || newJob(mode);
     if (!app.analysisJob || app.analysisJob.status === "completed")
       app.setAnalysisJob(job);
-    const timer = setInterval(
-      async () => {
+    const run = async () => {
+      const project = app.project;
+      if (!project) return;
+      const mark = (status: AnalysisJob["status"], progress: number, currentStep: string, stepIndex: number) => {
         if (cancelled) return;
-        const next = job.stepIndex + 1;
-        if (next >= steps.length) {
-          clearInterval(timer);
-          const project = app.project;
-          if (!project) return;
-          app.setAnalysisJob({
-            ...job,
-            status: "generating",
-            progress: 92,
-            currentStep: "正在检索 GitHub、Skill、MCP、Plugin 与参考项目",
-            stepIndex: job.stepIndex,
+        job = { ...job, mode, status, progress, currentStep, stepIndex };
+        app.setAnalysisJob(job);
+      };
+      mark("understanding", 10, "正在读取项目描述和访谈答案", 0);
+      mark("researching", 35, "正在检索本地知识库与候选来源", Math.min(2, steps.length - 1));
+      try {
+        const discoveryResponse = await fetch(`/api/projects/${project.id}/discover`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project, answers: app.answers }),
+        });
+        if (discoveryResponse.ok) {
+          const found = await discoveryResponse.json() as { githubProjects?: unknown[]; ecosystem?: Array<{ category?: string }>; knowledge?: { browserSearch?: { resultCount?: number; error?: string; queries?: string[] } } };
+          if (!cancelled) setDiscovery({
+            github: found.githubProjects?.length || 0,
+            ecosystem: found.ecosystem?.length || 0,
+            categories: Array.from(new Set((found.ecosystem || []).map((item) => item.category).filter(Boolean))) as string[],
+            browser: found.knowledge?.browserSearch?.resultCount || 0,
+            browserError: found.knowledge?.browserSearch?.error,
+            queries: found.knowledge?.browserSearch?.queries || [],
           });
-          try {
-            const discoveryResponse = await fetch(`/api/projects/${project.id}/discover`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ project, answers: app.answers }),
-            });
-            if (discoveryResponse.ok) {
-              const found = await discoveryResponse.json() as { githubProjects?: unknown[]; ecosystem?: Array<{ category?: string }>; knowledge?: { browserSearch?: { resultCount?: number; error?: string; queries?: string[] } } };
-              setDiscovery({
-                github: found.githubProjects?.length || 0,
-                ecosystem: found.ecosystem?.length || 0,
-                categories: Array.from(new Set((found.ecosystem || []).map((item) => item.category).filter(Boolean))) as string[],
-                browser: found.knowledge?.browserSearch?.resultCount || 0,
-                browserError: found.knowledge?.browserSearch?.error,
-                queries: found.knowledge?.browserSearch?.queries || [],
-              });
-            }
-          } catch {
-            // The analysis API performs the same fallback discovery before generating the report.
-          }
-          try {
-            const response = await fetch(`/api/projects/${project.id}/analyze`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ project, answers: app.answers }),
-            });
-            const contentType = response.headers.get("content-type") || "";
-            const data = contentType.includes("application/json")
-              ? (await response.json()) as { report?: typeof app.report; message?: string; error?: string }
-              : { message: `服务返回了非 JSON 响应（HTTP ${response.status}），请检查本地服务日志。` };
-            if (!response.ok || !data.report) {
-              clearInterval(timer);
-              app.setAnalysisJob({
-                ...job,
-                status: "failed",
-                progress: 92,
-                currentStep: "分析失败",
-                stepIndex: job.stepIndex,
-              });
-              setError(
-                data.message || data.error || "真实 AI 评估失败，请检查当前 AI Provider 连接。",
-              );
-              return;
-            }
-            if (cancelled) return;
-            app.setReport(data.report);
-            app.setAnalysisJob({
-              ...job,
-              status: "completed",
-              progress: 100,
-              currentStep: "分析完成",
-              stepIndex: steps.length,
-            });
-            setTimeout(() => {
-              if (!cancelled) router.push(`/project/${params.id}/report`);
-            }, 350);
-          } catch (requestError) {
-            if (cancelled) return;
-            app.setAnalysisJob({
-              ...job,
-              status: "failed",
-              progress: 92,
-              currentStep: "分析失败",
-              stepIndex: job.stepIndex,
-            });
-            setError(requestError instanceof Error ? requestError.message : "分析请求失败，请检查本地服务是否仍在运行。");
-          }
+        }
+      } catch {
+        // Analyze still runs its own retrieval if discovery fails.
+      }
+      if (cancelled) return;
+      mark("generating", 70, "正在生成可核验报告", Math.max(steps.length - 2, 0));
+      try {
+        const response = await fetch(`/api/projects/${project.id}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project, answers: app.answers }),
+        });
+        const contentType = response.headers.get("content-type") || "";
+        const data = contentType.includes("application/json")
+          ? await response.json() as { report?: typeof app.report; message?: string; error?: string }
+          : { message: `服务返回了非 JSON 响应（HTTP ${response.status}），请检查本地服务日志。` };
+        if (!response.ok || !data.report) {
+          mark("failed", 70, "分析失败", job.stepIndex);
+          setError(data.message || data.error || "真实 AI 评估失败，请检查当前 AI Provider 连接。");
           return;
         }
-        const status: AnalysisJob["status"] =
-          mode === "quick"
-            ? quickStatuses[next] || "generating"
-            : next < 3
-              ? "researching"
-              : next < 7
-                ? "matching"
-                : next < 9
-                  ? "estimating"
-                  : "generating";
-        job = {
-          ...job,
-          mode,
-          status,
-          stepIndex: next,
-          currentStep: steps[next],
-          progress: Math.round((next / (steps.length - 1)) * 100),
-        };
-        app.setAnalysisJob(job);
-      },
-      mode === "quick" ? 650 : 430,
-    );
+        if (cancelled) return;
+        app.setReport(data.report);
+        mark("completed", 100, "分析完成", steps.length);
+        setTimeout(() => {
+          if (!cancelled) router.push(`/project/${params.id}/report`);
+        }, 350);
+      } catch (requestError) {
+        if (cancelled) return;
+        mark("failed", 70, "分析失败", job.stepIndex);
+        setError(requestError instanceof Error ? requestError.message : "分析请求失败，请检查本地服务是否仍在运行。");
+      }
+    };
+    void run();
     return () => {
       cancelled = true;
-      clearInterval(timer);
     };
     // The interval intentionally captures one immutable analysis run. Adding
     // the mutable context object here would restart the API pipeline on every
@@ -186,8 +120,7 @@ export default function Analysis() {
       </div>
     );
   if (!app.project) return <div className="content">未找到项目。</div>;
-  const job = app.analysisJob || newJob(mode),
-    notes = discoveries[app.project.kind] || discoveries.general;
+  const job = app.analysisJob || newJob(mode);
   return (
     <main>
       <div className="analysis-layout">
@@ -195,14 +128,14 @@ export default function Analysis() {
           <p className="sidebar-title">
             {mode === "quick" ? "快速评估" : "项目技术研究"}
           </p>
-          <div className="sidebar-item">
-            ✓ {mode === "quick" ? "理解项目" : "需求理解"}
+          <div className={`sidebar-item ${job.status !== "queued" ? "active" : ""}`}>
+            {job.progress >= 10 ? "✓" : "○"} {mode === "quick" ? "理解项目" : "需求理解"}
           </div>
-          <div className="sidebar-item active">
-            ◉ {mode === "quick" ? "匹配方案" : "技术研究"}
+          <div className={`sidebar-item ${job.status === "researching" || job.status === "matching" ? "active" : ""}`}>
+            {job.progress >= 35 ? "✓" : "◉"} {mode === "quick" ? "检索候选" : "技术研究"}
           </div>
-          <div className="sidebar-item">
-            ○ {mode === "quick" ? "生成执行计划" : "决策报告"}
+          <div className={`sidebar-item ${job.status === "generating" || job.status === "completed" ? "active" : ""}`}>
+            {job.status === "completed" ? "✓" : "○"} {mode === "quick" ? "生成执行计划" : "决策报告"}
           </div>
         </aside>
         <section className="content">
@@ -274,12 +207,12 @@ export default function Analysis() {
                       {discovery.queries.length > 0 && <small className="muted">查询：{discovery.queries.slice(0, 2).join("；")}</small>}
                     </div>
                   </>
-                ) : notes.slice(0, mode === "quick" ? 2 : 3).map((note, i) => (
-                  <div className="card analysis-note fade-in" key={note}>
-                    <h3>{i === 0 ? "已找到" : "正在比较"}</h3>
-                    <p>{note}</p>
+                ) : (
+                  <div className="card analysis-note fade-in">
+                    <h3>检索尚未完成</h3>
+                    <p>候选数量以接口返回为准，不会预先填写仓库或 Starter 数量。</p>
                   </div>
-                ))}
+                )}
                 <div className="card analysis-note">
                   <h3>当前任务</h3>
                   <strong>{job.currentStep}</strong>

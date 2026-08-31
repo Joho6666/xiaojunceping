@@ -584,14 +584,16 @@ export function ExecutionTasks({ r }: { r: ProjectReport }) {
   if (!plan?.tasks?.length) return null;
   return (
     <ReportSection id="tasks" title="施工任务" lead>
-      <p className="muted">覆盖率 {Math.round(plan.coverage * 100)}% · 每个 Required Feature 都应有任务和验收。未覆盖则不能 Development Ready。</p>
+      <p className="muted">覆盖率 {Math.round(plan.coverage * 100)}% · 没有匹配 Agent 的需求不能 Development Ready。{r.planDiff && (r.planDiff.added.length || r.planDiff.removed.length) ? ` 相对上一版：新增 ${r.planDiff.added.length}，删除 ${r.planDiff.removed.length}。` : ""}</p>
       {plan.tasks.map((task) => (
         <div className="understood-row" key={task.id}>
-          <span>{task.id} · {task.title}</span>
+          <span>{task.id} · {task.title} · Agent {task.agentId || "未匹配"} · 验收 {task.acceptanceCriteria[0]}</span>
           <b>{task.requirementIds.join(", ")}</b>
         </div>
       ))}
-      {plan.missingRequirements.length ? <div className="missing">{plan.missingRequirements.map((item) => <span key={item}>{item}</span>)}</div> : null}
+      {plan.missingRequirements.length ? <div className="missing">{plan.missingRequirements.map((item) => <span key={item}>{item} 未匹配 Agent</span>)}</div> : null}
+      {r.planDiff?.added?.length ? <p className="muted">新增任务：{r.planDiff.added.join("、")}</p> : null}
+      {r.planDiff?.removed?.length ? <p className="muted">删除任务：{r.planDiff.removed.join("、")}</p> : null}
     </ReportSection>
   );
 }

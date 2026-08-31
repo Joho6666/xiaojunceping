@@ -559,6 +559,7 @@ export interface ProjectReport {
   estimateMethod?: string;
   clarificationQuestions?: string[];
   executionPlan?: TraceabilityPlan;
+  planDiff?: { added: string[]; removed: string[] };
 }
 export interface QuickReportView {
   title: string;

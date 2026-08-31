@@ -18,8 +18,8 @@ import { estimateCost } from "../estimation/costEstimator";
 import { mergeEvidence } from "../evidence/evidenceStore";
 import { buildAgentPlan, applyAgentPlanToReport, buildPromptArtifacts } from "../reportCustomizationService";
 import { assessReadiness } from "../evaluation/readinessGate";
-import { buildTraceabilityPlan } from "../planning/traceability";
-import { nextPlanVersion } from "../historyStore";
+import { buildTraceabilityPlan, diffPlans } from "../planning/traceability";
+import { getPreviousPlan, nextPlanVersion, savePlanSnapshot } from "../historyStore";
 
 export function buildLiveReport(input: {
   project: Project;
@@ -160,9 +160,12 @@ export function buildLiveReport(input: {
     planVersion: 1,
     executionPlan: buildTraceabilityPlan(profile, agents.agents, tools.tools),
   };
+  const previousPlan = getPreviousPlan(project.id);
   report.planVersion = nextPlanVersion(project.id);
+  report.planDiff = diffPlans(previousPlan, report.executionPlan);
+  if (report.executionPlan) savePlanSnapshot(project.id, report.planVersion || 1, report.executionPlan);
   if ((report.executionPlan?.coverage || 0) < 1 && (profile.requiredFeatures || []).length) {
-    report.blockingIssues = Array.from(new Set([...(report.blockingIssues || []), "存在没有施工任务的 Required Feature"]));
+    report.blockingIssues = Array.from(new Set([...(report.blockingIssues || []), "存在没有匹配 Agent 的 Required Feature"]));
   }
   report.readiness = assessReadiness(profile, report);
   const agentPlan = buildAgentPlan(project, profile, report, models.models.find((item) => item.roleKind === "execution")?.modelId || evaluator.model);
