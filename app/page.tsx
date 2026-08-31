@@ -186,7 +186,7 @@ export default function Home() {
             <h3>最终得到</h3>
             <div className="mock-report">
               <b>{mode === "quick" ? "快速评估报告" : "项目决策报告"}</b>
-              <span className="mock-score">84</span>
+              <span className="mock-score">示例</span>
               <p>实现策略 · Agent · 具体模型</p>
               <p>
                 {mode === "quick"

@@ -88,17 +88,22 @@ function encryptionKey() {
     ? Buffer.from(raw, "hex")
     : crypto.createHash("sha256").update(raw).digest();
 }
+const plaintextFile = path.join(process.cwd(), ".agentscope", "provider-connections.json");
 function persist() {
-  const key = encryptionKey();
-  if (!key) return;
-  const iv = crypto.randomBytes(12),
-    cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-  const plaintext = JSON.stringify({
+  const snapshot = {
     connections: Array.from(connections.values()),
     secrets: Array.from(secrets.entries()),
-  });
+  };
+  fs.mkdirSync(path.dirname(storageFile), { recursive: true });
+  const key = encryptionKey();
+  if (!key) {
+    fs.writeFileSync(plaintextFile, JSON.stringify({ v: 1, unencrypted: true, ...snapshot }), { encoding: "utf8", mode: 0o600 });
+    return;
+  }
+  const iv = crypto.randomBytes(12),
+    cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
+    cipher.update(JSON.stringify(snapshot), "utf8"),
     cipher.final(),
   ]);
   const payload = JSON.stringify({
@@ -107,10 +112,19 @@ function persist() {
     tag: cipher.getAuthTag().toString("base64"),
     data: encrypted.toString("base64"),
   });
-  fs.mkdirSync(path.dirname(storageFile), { recursive: true });
   fs.writeFileSync(storageFile, payload, { encoding: "utf8", mode: 0o600 });
 }
+function applySnapshot(parsed: { connections: ProviderConnection[]; secrets: Array<[string, string]> }) {
+  parsed.connections.forEach((item) => connections.set(item.id, item));
+  parsed.secrets.forEach(([connectionId, secret]) => secrets.set(connectionId, secret));
+}
 function restore() {
+  try {
+    if (fs.existsSync(plaintextFile)) {
+      const parsed = JSON.parse(fs.readFileSync(plaintextFile, "utf8")) as { connections?: ProviderConnection[]; secrets?: Array<[string, string]> };
+      if (parsed.connections && parsed.secrets) applySnapshot({ connections: parsed.connections, secrets: parsed.secrets });
+    }
+  } catch { /* ignore plaintext restore */ }
   const key = encryptionKey();
   if (!key || !fs.existsSync(storageFile)) return;
   try {

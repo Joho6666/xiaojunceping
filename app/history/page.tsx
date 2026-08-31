@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "../../components/AppProvider";
 import { Footer } from "../../components/Footer";
-import { Project } from "../../types";
+import { AnswerValue, Project, ProjectReport } from "../../types";
+
+type StoredEntry = { project: Project; answers?: Record<string, AnswerValue>; report?: ProjectReport | null; hasReport?: boolean };
 
 export default function HistoryPage() {
   const app = useApp();
   const router = useRouter();
-  const [stored, setStored] = useState<Project[]>([]);
+  const [stored, setStored] = useState<StoredEntry[]>([]);
   useEffect(() => {
     fetch("/api/history")
       .then((response) => (response.ok ? response.json() : null))
@@ -27,7 +29,7 @@ export default function HistoryPage() {
     router.push(`/project/${id}/${hasReport ? "report" : "interview"}`);
   };
   const localIds = new Set(app.history.map((entry) => entry.project.id));
-  const extras = stored.filter((project) => project?.id && !localIds.has(project.id));
+  const extras = stored.filter((entry) => entry?.project?.id && !localIds.has(entry.project.id));
 
   if (!app.hydrated) return <main className="history-page"><div className="content">正在恢复历史记录…</div></main>;
 
@@ -37,7 +39,7 @@ export default function HistoryPage() {
         <section className="history-page-header fade-in">
           <div className="eyebrow">HISTORY</div>
           <h1>历史记录</h1>
-          <p>浏览器缓存用于立即继续；本机 SQLite 保存评估过的项目，刷新后仍可重新打开。</p>
+          <p>浏览器缓存用于立即继续；本机 SQLite 保存项目、访谈和报告，刷新后仍可打开。</p>
         </section>
         {app.history.length ? (
           <section className="history-page-list fade-in">
@@ -65,22 +67,22 @@ export default function HistoryPage() {
         {extras.length ? (
           <section className="history-page-list fade-in">
             <p className="muted">本机 SQLite 中还有 {extras.length} 个评估项目。</p>
-            {extras.map((project) => (
+            {extras.map((entry) => (
               <button
                 type="button"
                 className="history-page-item card"
-                key={project.id}
+                key={entry.project.id}
                 onClick={() => {
-                  app.restoreProject(project);
-                  router.push(`/project/${project.id}/interview`);
+                  app.restoreProject(entry.project, entry.answers, entry.report);
+                  router.push(`/project/${entry.project.id}/${entry.hasReport || entry.report ? "report" : "interview"}`);
                 }}
               >
                 <span className="history-page-item-main">
-                  <strong>{project.idea}</strong>
-                  <small>{project.evaluationMode === "quick" ? "快速评估" : "专家评估"} · {String(project.kind || "general").toUpperCase()} · 本机记录</small>
+                  <strong>{entry.project.idea}</strong>
+                  <small>{entry.project.evaluationMode === "quick" ? "快速评估" : "专家评估"} · {String(entry.project.kind || "general").toUpperCase()} · 本机记录</small>
                 </span>
                 <span className="history-page-item-status">
-                  <small>重新打开</small>
+                  <small>{entry.hasReport || entry.report ? "打开报告" : "重新打开"}</small>
                   <b>打开 →</b>
                 </span>
               </button>

@@ -31,8 +31,7 @@ export function retrieveKnowledgeHybrid(profile: RequirementProfile): { matches:
   const lexical = index.rank(query, 30);
   const lexicalMax = Math.max(...lexical.map((item) => item.score), 1);
   const byId = new Map(items.map((item) => [item.id, item]));
-  const embedding = createEmbeddingProvider();
-  const retrievalMode: RetrievalMode = embedding.available() ? "hybrid" : "lexical";
+  const retrievalMode: RetrievalMode = "lexical";
   const mergedIds = new Set(lexical.map((item) => item.id));
   const matches: KnowledgeMatch[] = lexical.map((row) => {
     const item = byId.get(row.id)!;

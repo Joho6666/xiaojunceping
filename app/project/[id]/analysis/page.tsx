@@ -309,9 +309,9 @@ export default function Analysis() {
                 </div>
                 <div className="card analysis-note">
                   <h3>项目实施预测</h3>
-                  <strong>Token：约 2 万–8 万</strong>
-                  <p>时间：约 3–7 天 · 执行模型：{modelLabel}</p>
-                  <small className="muted">这是项目实施预测，不是本次测评 API 消耗；最终以报告中的范围和置信度为准。</small>
+                  <strong>Token：评估中</strong>
+                  <p>时间：评估中 · 执行模型：{modelLabel}</p>
+                  <small className="muted">实施预测以最终报告为准；证据不足时会标 unknown，不会用模板数字顶上。</small>
                 </div>
               </div>
             </div>

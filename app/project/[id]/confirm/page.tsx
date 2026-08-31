@@ -10,8 +10,8 @@ export default function Confirm() {
     params = useParams();
   const [checked, setChecked] = useState<string[]>([]);
   const preview = useMemo(
-    () => (app.project ? getRequirementPreview(app.project) : null),
-    [app.project],
+    () => (app.project ? getRequirementPreview(app.project, app.answers) : null),
+    [app.project, app.answers],
   );
   if (!app.hydrated) return <div className="content">正在恢复需求…</div>;
   if (app.project && String(params.id) !== app.project.id)

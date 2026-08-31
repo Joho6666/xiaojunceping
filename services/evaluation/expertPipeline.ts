@@ -1,6 +1,6 @@
 import { AnswerValue, Project, ProjectReport } from "../../types";
 import { extractRequirementProfile } from "../requirements/extractor";
-import { retrieveKnowledgeHybrid } from "../retrieval/hybrid";
+import { retrieveKnowledgeHybridAsync } from "../retrieval/hybrid";
 import { applyKnowledgeRules } from "../knowledgeRuleEngine";
 import { searchGithubProjects } from "../githubService";
 import { getCapabilitySecret } from "../capabilityService";
@@ -12,6 +12,7 @@ import { critiqueReport, structuredCritique } from "./critic";
 import { evaluateRequirementGate } from "./requirementGate";
 import { evidenceFromUrl } from "../evidence/evidenceStore";
 import { classifySourceUrl } from "../verification/sourceVerifier";
+import { verifyGithubRecommendation } from "../verification/githubVerifier";
 
 export async function runExpertPipeline(
   project: Project,
@@ -39,7 +40,7 @@ export async function runExpertPipeline(
     report.requirementCompleteness = gate.completeness.score;
     return verifyReport(report);
   }
-  const retrieved = retrieveKnowledgeHybrid(profile);
+  const retrieved = await retrieveKnowledgeHybridAsync(profile);
   const knowledgeMatches = applyKnowledgeRules(profile, retrieved.matches);
   const browserSearch = await searchBrowserSources(project, profile).catch(() => ({ queries: [], results: [] as Array<{ url: string; title?: string }>, searchedAt: undefined, error: "browser search failed" }));
   let githubProjects = await searchGithubProjects(project, [...profile.tags, ...profile.capabilities].slice(0, 8), {
@@ -52,6 +53,12 @@ export async function runExpertPipeline(
   }).catch(() => []);
   const seen = new Set(githubProjects.map((item) => item.repo.toLowerCase()));
   githubProjects = [...githubProjects, ...browserGithub.filter((item) => !seen.has(item.repo.toLowerCase()))];
+  const githubToken = getCapabilitySecret("github");
+  githubProjects = await Promise.all(
+    githubProjects.slice(0, 8).map((item) =>
+      verifyGithubRecommendation(item, githubToken).catch(() => ({ ...item, verificationStatus: "partially_verified" as const })),
+    ),
+  );
   const evidence = [
     evidenceFromUrl("user-input", "项目描述与访谈", undefined, "high", project.idea.slice(0, 180)),
     ...githubProjects.slice(0, 12).map((item) => evidenceFromUrl("github", item.repo, item.url, "high", item.advice)),

@@ -200,7 +200,7 @@ export default function AISettings() {
         <h1>AI 配置</h1>
         <p className="muted">
           连接你已经登录的本地 CLI，或配置 OpenAI-compatible
-          API。密钥不会写入浏览器 localStorage。
+          API。密钥不会写入浏览器 localStorage。未设置 DATABASE_ENCRYPTION_KEY 时会保存到本机 .agentscope 目录（仅当前用户可读）。
         </p>
         {message && <div className="settings-message">{message}</div>}
         <section className="settings-grid">
@@ -240,9 +240,7 @@ export default function AISettings() {
                     >
                       {busy === id ? "检查中…" : `连接 ${cli}`}
                     </button>
-                    <button className="btn" onClick={() => oauth(id)}>
-                      网页 OAuth
-                    </button>
+                    <p className="muted">网页 OAuth 未启用，请用本地 CLI 或 API Key。</p>
                   </div>
                 )}
                 {id === "openai" && (
@@ -314,7 +312,7 @@ export default function AISettings() {
         </section>
         <section className="card capability-panel">
           <div className="provider-head">
-            <div><span className="mono tiny">TOOLS & RESEARCH</span><h2>工具与研究能力</h2><p>这些能力会在项目分析时被实际检查和使用。密钥只发送到服务端，不写入浏览器。</p></div>
+            <div><span className="mono tiny">TOOLS & RESEARCH</span><h2>工具与研究能力</h2><p>GitHub Token 和浏览器搜索会进入分析。MCP / 文件系统 / 终端 / Playwright 目前只保存配置，分析流水线尚未调用。</p></div>
           </div>
           <div className="capability-grid">
             {capabilities.map(([id, name, desc]) => {

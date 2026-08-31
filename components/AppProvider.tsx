@@ -8,7 +8,7 @@ import { createAnalysisJob } from '../services/analysisService';
 const KEY = 'agentscope:state:v3';
 const HISTORY_KEY = 'agentscope:history:v1';
 type HistoryEntry = Omit<PersistedState, "project"> & { project:Project; savedAt:string };
-type Ctx = PersistedState & { hydrated:boolean; history:HistoryEntry[]; createProject:(idea:string,mode?:EvaluationMode,connection?:{id:string;model?:string})=>string; openHistory:(id:string)=>void; restoreProject:(project:Project)=>void; setAnswer:(id:string,value:AnswerValue)=>void; setCurrentQuestion:(n:number)=>void; setReport:(r:ProjectReport|null)=>void; setAnalysisJob:(j:AnalysisJob|null)=>void; setEvaluationMode:(mode:EvaluationMode)=>void; setReportView:(mode:EvaluationMode)=>void; setUpgradePending:(pending:boolean)=>void; reset:()=>void };
+type Ctx = PersistedState & { hydrated:boolean; history:HistoryEntry[]; createProject:(idea:string,mode?:EvaluationMode,connection?:{id:string;model?:string})=>string; openHistory:(id:string)=>void; restoreProject:(project:Project, answers?:Record<string,AnswerValue>, report?:ProjectReport|null)=>void; setAnswer:(id:string,value:AnswerValue)=>void; setCurrentQuestion:(n:number)=>void; setReport:(r:ProjectReport|null)=>void; setAnalysisJob:(j:AnalysisJob|null)=>void; setEvaluationMode:(mode:EvaluationMode)=>void; setReportView:(mode:EvaluationMode)=>void; setUpgradePending:(pending:boolean)=>void; reset:()=>void };
 const Context = createContext<Ctx|null>(null);
 const initial:PersistedState = { version:3, project:null, answers:{}, currentQuestion:0, report:null, analysisJob:null, reportView:'quick', upgradePending:false };
 
@@ -56,7 +56,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   const value = useMemo<Ctx>(()=>({...state,hydrated,history,
     createProject:(idea,mode='quick',connection)=>{const id=crypto.randomUUID();const project:Project={id,idea,kind:detectProjectKind(idea),evaluationMode:mode,createdAt:new Date().toISOString(),selectedConnectionId:connection?.id,selectedModel:connection?.model};setState({...initial,project,answers:{idea},reportView:mode});return id;},
     openHistory:(id)=>{const entry=history.find((item)=>item.project?.id===id);if(entry)setState({...entry,version:3});},
-    restoreProject:(project)=>setState({...initial,project,answers:{idea:project.idea},reportView:project.evaluationMode}),
+    restoreProject:(project, answers, report)=>setState({...initial,project,answers:answers && Object.keys(answers).length ? answers : {idea:project.idea},report:report||null,reportView:project.evaluationMode}),
     setAnswer:(id,value)=>setState(s=>({...s,answers:{...s.answers,[id]:value}})),
     setCurrentQuestion:n=>setState(s=>({...s,currentQuestion:n})),
     setReport:report=>setState(s=>({...s,report})),

@@ -51,6 +51,7 @@ jobs:
           npm run test:readiness
           npm run test:traceability
           npm run test:benchmark
+          npm run test:history
 
       - name: Build
         run: npm run build --if-present

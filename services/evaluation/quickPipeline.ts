@@ -1,6 +1,6 @@
 import { AnswerValue, Project, ProjectReport } from "../../types";
 import { extractRequirementProfile } from "../requirements/extractor";
-import { retrieveKnowledgeHybrid } from "../retrieval/hybrid";
+import { retrieveKnowledgeHybridAsync } from "../retrieval/hybrid";
 import { applyKnowledgeRules } from "../knowledgeRuleEngine";
 import { searchGithubProjects } from "../githubService";
 import { getCapabilitySecret } from "../capabilityService";
@@ -16,7 +16,7 @@ export async function runQuickPipeline(
 ): Promise<ProjectReport> {
   const profile = extractRequirementProfile(project, answers);
   const gate = evaluateRequirementGate(profile, "quick");
-  const retrieved = retrieveKnowledgeHybrid(profile);
+  const retrieved = await retrieveKnowledgeHybridAsync(profile);
   const knowledgeMatches = applyKnowledgeRules(profile, retrieved.matches);
   const githubProjects = profile.needsGithub
     ? await searchGithubProjects(project, profile.tags.slice(0, 5), {

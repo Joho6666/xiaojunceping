@@ -108,7 +108,7 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 
 `domain * 0.28 + featureOverlap * 0.24 + stackFit * 0.18 + maturity * 0.12 + maintainability * 0.12 + licenseFit * 0.06`
 
-知识库检索使用 corpus 级 BM25（N/df/avgDl）和中文 n-gram 切分。只有配置 `EMBEDDING_BASE_URL` + `EMBEDDING_API_KEY` + `EMBEDDING_MODEL` 时才会真正计算 cosine 并标记 `retrievalMode = hybrid`；否则 fail closed 为 lexical。
+知识库检索默认是 corpus 级 BM25 + 中文 n-gram（`retrievalMode = lexical`）。配置齐全 `EMBEDDING_*` 时，live 路径会走 `retrieveKnowledgeHybridAsync` 计算 cosine；缺任一配置不会把报告标成 hybrid。
 
 评估模型（evaluator）和执行模型（executionModels）分开。用户选 Codex 来生成报告，不会自动把它写成“本项目最适合的开发模型”。
 
@@ -179,10 +179,10 @@ npm run dev
 - API Key 只提交到服务端，不写入浏览器 `localStorage`，报告不包含 Key 原文。
 - CLI 连接只调用本机已安装的 `codex`、`claude` 或 `gemini` 命令，不读取 CLI 内部 OAuth 文件、Cookie 或 Token。
 - 没有可用 Provider 时，真实分析会明确失败，不回退成假报告。
-- 网页 OAuth 只有配置官方 Client ID / Secret 后才会启用；未配置时返回不可用状态，不伪造登录成功。
+- 网页 OAuth 当前未启用，请用本地 CLI 或 API Key。
 - `.env`、`.env.local`、`.agentscope/`、SQLite 运行时文件、日志、导出物和个人历史记录均被 Git 忽略。
 
-复制 `.env.example` 为 `.env.local`，只填写自己需要的服务端配置。`USE_MOCK_DATA=true` 仅用于明确的演示 / 测试模式，不代表真实 Provider 已连接。
+复制 `.env.example` 为 `.env.local`。未设置 `DATABASE_ENCRYPTION_KEY` 时，连接会以本机受限权限文件保存（`.agentscope/*.json`），重启后仍可用；设置密钥后改为 AES-256-GCM。
 
 ## 知识库
 

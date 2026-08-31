@@ -8,7 +8,7 @@
     "lint": "next lint",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:reports && npm run test:knowledge && npm run test:knowledge-coverage && npm run test:local-discovery && npm run test:customization && npm run test:prompt && npm run test:discovery && npm run test:cli && npm run test:report-store && npm run test:golden && npm run test:live-integrity && npm run test:requirements && npm run test:retrieval && npm run test:ranking && npm run test:verification && npm run test:readiness && npm run test:traceability && npm run test:benchmark",
+    "test": "npm run test:reports && npm run test:knowledge && npm run test:knowledge-coverage && npm run test:local-discovery && npm run test:customization && npm run test:prompt && npm run test:discovery && npm run test:cli && npm run test:report-store && npm run test:golden && npm run test:live-integrity && npm run test:requirements && npm run test:retrieval && npm run test:ranking && npm run test:verification && npm run test:readiness && npm run test:traceability && npm run test:benchmark && npm run test:history",
     "test:reports": "tsx scripts/validateReports.ts",
     "test:knowledge": "tsx scripts/testKnowledge.ts",
     "test:knowledge-coverage": "tsx scripts/testKnowledgeCoverage.ts",
@@ -27,6 +27,7 @@
     "test:readiness": "tsx scripts/testReadiness.ts",
     "test:traceability": "tsx scripts/testTraceability.ts",
     "test:benchmark": "tsx scripts/testBenchmark.ts",
+    "test:history": "tsx scripts/testHistory.ts",
     "knowledge:sync": "tsx scripts/syncKnowledge.ts"
   },
   "dependencies": {

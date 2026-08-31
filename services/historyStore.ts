@@ -66,8 +66,17 @@ export function nextPlanVersion(projectId: string) {
 }
 
 export function listProjectRecords() {
+  return listHistoryEntries().map((entry) => entry.project);
+}
+
+export function listHistoryEntries() {
   return database()
-    .prepare("SELECT project_json FROM projects ORDER BY updated_at DESC")
+    .prepare("SELECT project_json, answers_json FROM projects ORDER BY updated_at DESC")
     .all()
-    .map((row) => JSON.parse((row as { project_json: string }).project_json) as Project);
+    .map((row) => {
+      const project = JSON.parse((row as { project_json: string }).project_json) as Project;
+      let answers: Record<string, AnswerValue> = {};
+      try { answers = JSON.parse((row as { answers_json: string }).answers_json || "{}"); } catch { answers = {}; }
+      return { project, answers };
+    });
 }
