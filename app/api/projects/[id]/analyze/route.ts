@@ -5,9 +5,16 @@ import { saveStoredReport } from '../../../../../services/reportStore';
 import { Project, AnswerValue } from '../../../../../types';
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  let body: { project?: Project; answers?: Record<string, AnswerValue> };
   try {
-    const body = await request.json() as { project?: Project; answers?: Record<string, AnswerValue> };
+    body = await request.json() as { project?: Project; answers?: Record<string, AnswerValue> };
+  } catch {
+    return NextResponse.json({ error: 'INVALID_JSON', message: '请求体必须是合法 JSON。' }, { status: 400 });
+  }
+  try {
     if (!body.project || body.project.id !== params.id) return NextResponse.json({ error: 'PROJECT_REQUIRED' }, { status: 400 });
+    if (!body.project.idea || !String(body.project.idea).trim()) return NextResponse.json({ error: 'IDEA_REQUIRED', message: '请先填写项目描述（idea）。' }, { status: 400 });
+    if (!body.project.kind) return NextResponse.json({ error: 'KIND_REQUIRED', message: '缺少项目类型（kind）。' }, { status: 400 });
     const preferred = await resolveAnyEvaluationProvider(body.project.selectedConnectionId);
     if (preferred.status !== 'connected') return NextResponse.json({ error: 'PROVIDER_REQUIRED', message: '请先连接可用的 AI Provider（Codex CLI 或 API Key）。' }, { status: 503 });
     if (preferred.provider === 'anthropic' || preferred.provider === 'gemini') {
