@@ -16,6 +16,8 @@
     "test:customization": "tsx scripts/testCustomization.ts",
     "test:prompt": "tsx scripts/testPrompt.ts",
     "test:discovery": "tsx scripts/testDiscovery.ts",
+    "test:cli": "tsx scripts/testCliAdapter.ts",
+    "test:report-store": "tsx scripts/testReportStore.ts",
     "knowledge:sync": "tsx scripts/syncKnowledge.ts"
   },
   "dependencies": {

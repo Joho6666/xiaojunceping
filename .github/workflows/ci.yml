@@ -30,5 +30,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck --if-present
 
+      - name: Tests
+        run: |
+          npm run test:reports
+          npm run test:knowledge
+          npm run test:knowledge-coverage
+          npm run test:local-discovery
+          npm run test:customization
+          npm run test:prompt
+          npm run test:discovery
+          npm run test:cli
+          npm run test:report-store
+
       - name: Build
         run: npm run build --if-present

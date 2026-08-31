@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveAnyEvaluationProvider, resolveProvider } from '../../../../../services/providerService';
+import { resolveAnyEvaluationProvider } from '../../../../../services/providerService';
 import { analyzeWithCodex, analyzeWithDeepSeek } from '../../../../../services/realAnalysisService';
 import { saveStoredReport } from '../../../../../services/reportStore';
-import { Project, AnswerValue } from '../../../../../types';
+import { Project, AnswerValue, ProjectKind } from '../../../../../types';
+
+const PROJECT_KINDS: ProjectKind[] = ['video', 'web', 'cad', 'pcb', 'automation', 'general'];
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   let body: { project?: Project; answers?: Record<string, AnswerValue> };
@@ -14,7 +16,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   try {
     if (!body.project || body.project.id !== params.id) return NextResponse.json({ error: 'PROJECT_REQUIRED' }, { status: 400 });
     if (!body.project.idea || !String(body.project.idea).trim()) return NextResponse.json({ error: 'IDEA_REQUIRED', message: '请先填写项目描述（idea）。' }, { status: 400 });
-    if (!body.project.kind) return NextResponse.json({ error: 'KIND_REQUIRED', message: '缺少项目类型（kind）。' }, { status: 400 });
+    if (!body.project.kind || !PROJECT_KINDS.includes(body.project.kind)) {
+      return NextResponse.json({ error: 'KIND_REQUIRED', message: '项目类型（kind）无效。' }, { status: 400 });
+    }
     const preferred = await resolveAnyEvaluationProvider(body.project.selectedConnectionId);
     if (preferred.status !== 'connected') return NextResponse.json({ error: 'PROVIDER_REQUIRED', message: '请先连接可用的 AI Provider（Codex CLI 或 API Key）。' }, { status: 503 });
     if (preferred.provider === 'anthropic' || preferred.provider === 'gemini') {

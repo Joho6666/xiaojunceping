@@ -98,7 +98,7 @@ export async function analyzeWithDeepSeek(
     const fallbackQueries = defaultSearchPlanQueries(project);
     searchPlan = {
       queries: fallbackQueries,
-      focus: [project.idea],
+      focus: [(project.idea || "").trim().slice(0, 120)],
       usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
     };
     console.warn("[analyzeWithDeepSeek] 搜索计划降级为默认查询:", String(error));
