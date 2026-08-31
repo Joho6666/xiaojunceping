@@ -218,8 +218,12 @@ export default function AISettings() {
                   <span
                     className={`status-chip ${connection?.status === "connected" ? "good" : "warn"}`}
                   >
-                    {connection?.status === "connected"
-                      ? "已验证"
+                    {connection?.evaluationCapability === "partial"
+                      ? "仅连接 / 不可评估"
+                      : connection?.evaluationCapability === "unsupported"
+                        ? "不支持评估"
+                      : connection?.status === "connected"
+                      ? "已验证，可用于评估"
                       : connection?.status === "error"
                         ? "验证失败"
                         : connection

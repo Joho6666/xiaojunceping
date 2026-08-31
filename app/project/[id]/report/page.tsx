@@ -29,6 +29,10 @@ import {
   Automation,
   Risks,
   ConfidenceBlock,
+  Unknowns,
+  NextActions,
+  EvidenceBlock,
+  Decisions,
   Sources,
   ModelCompare,
   GithubDrawer,
@@ -174,7 +178,7 @@ export default function ReportPage() {
             <p className="muted">
               分析时间：{new Date(r.generatedAt).toLocaleString("zh-CN")} ·
               {isLiveReport
-                ? `${r.provider || "已连接 Provider"} / ${r.model || "已选模型"} 实时分析`
+                ? `${r.provider || "已连接 Provider"} / ${r.model || "已选模型"} 实时分析 · 引擎 ${r.evaluationEngineVersion || "v2"} · 检索 ${r.retrievalMode || "lexical"}`
                 : r.generationMode === "knowledge-only" ? "知识库规则分析" : "示例报告，需要重新分析"}
             </p>
           </div>
@@ -289,6 +293,10 @@ export default function ReportPage() {
               <Automation r={reportWithContext} />
               <Risks r={reportWithContext} />
               <ConfidenceBlock r={reportWithContext} />
+              <Unknowns r={reportWithContext} />
+              <NextActions r={reportWithContext} />
+              <EvidenceBlock r={reportWithContext} />
+              <Decisions r={reportWithContext} />
               <Sources r={reportWithContext} />
               <div className="report-cta">
                 <div>

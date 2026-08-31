@@ -6,6 +6,9 @@ import {
   ProjectReport,
 } from "../../types";
 import { filterGithubProjects } from "../../services/githubService";
+function safeHref(url?: string) {
+  return url && /^https?:\/\//i.test(url) ? url : undefined;
+}
 export const sections = [
   ["conclusion", "项目结论"],
   ["strategy", "实现策略"],
@@ -23,6 +26,10 @@ export const sections = [
   ["automation", "自动化"],
   ["risks", "风险"],
   ["confidence", "置信度"],
+  ["unknowns", "未知项"],
+  ["next", "下一步"],
+  ["evidence", "证据"],
+  ["decisions", "决策记录"],
   ["sources", "来源"],
 ] as const;
 export function Conclusion({ r }: { r: ProjectReport }) {
@@ -190,7 +197,7 @@ export function Github({
               <footer>
                 <a
                   className="btn"
-                  href={x.url}
+                  href={safeHref(x.url)}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -245,7 +252,7 @@ export function Products({ r }: { r: ProjectReport }) {
               </div>
             </div>
             <a
-              href={x.url}
+              href={safeHref(x.url)}
               target="_blank"
               rel="noreferrer"
               className="text-link"
@@ -314,8 +321,9 @@ export function Models({
                 <h3>{x.name}</h3>
                 <p>{x.task}</p>
               </div>
-              <b className="similarity">{x.matchScore}%</b>
+              <b className="similarity">{x.roleKind === "evaluator" ? "评估" : `${x.matchScore}%`}</b>
             </header>
+            {x.roleKind === "evaluator" && <p className="muted">该模型只用于生成本次评估，不是自动当选的执行模型。</p>}
             <div className="rating-grid">
               {Object.entries(x.ratings).map(([k, v]) => (
                 <span key={k}>
@@ -416,10 +424,10 @@ export function Ecosystem({ r }: { r: ProjectReport }) {
                 {item.pricing}
               </p>
             )}
-            {item.url && (
+            {safeHref(item.url) && (
               <a
                 className="text-link"
-                href={item.url}
+                href={safeHref(item.url)}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -694,9 +702,20 @@ export function ConfidenceBlock({ r }: { r: ProjectReport }) {
             </div>
           ))}
       </div>
+      {r.confidenceDetails && (
+        <div className="source-list">
+          {Object.entries(r.confidenceDetails).map(([key, item]) => (
+            <div key={key}>
+              <span className="mono tiny">{key} · {Math.round(item.score * 100)}</span>
+              <strong>{item.level}</strong>
+              <small>{item.reason}</small>
+            </div>
+          ))}
+        </div>
+      )}
       <details>
         <summary>置信度如何计算？</summary>
-        <p>{r.confidence.explanation.join("、")}。</p>
+        <p>{(r.confidence.explanation || []).join("、")}。</p>
       </details>
     </ReportSection>
   );
@@ -708,6 +727,67 @@ function Confidence({ level }: { level: "高" | "中" | "低" }) {
     >
       ● {level}
     </span>
+  );
+}
+export function Unknowns({ r }: { r: ProjectReport }) {
+  const unknowns = r.unknownFields || [];
+  const confirms = r.needsConfirmation || [];
+  if (!unknowns.length && !confirms.length) return null;
+  return (
+    <ReportSection id="unknowns" title="未知项与需确认" lead>
+      <p className="muted">证据不足时不会用模板数字填上。先确认这些字段，再进入施工。</p>
+      <div className="missing">{unknowns.map((item) => <span key={item}>{item}</span>)}</div>
+      <ul>{confirms.map((item) => <li key={item}>{item}</li>)}</ul>
+    </ReportSection>
+  );
+}
+export function NextActions({ r }: { r: ProjectReport }) {
+  const actions = r.nextActions || [];
+  if (!actions.length) return null;
+  return (
+    <ReportSection id="next" title="推荐下一步" lead>
+      <ol className="next-action-list">
+        {actions.map((item) => <li key={item}>{item}</li>)}
+      </ol>
+    </ReportSection>
+  );
+}
+export function EvidenceBlock({ r }: { r: ProjectReport }) {
+  const evidence = r.evidence || [];
+  if (!evidence.length) return null;
+  return (
+    <ReportSection id="evidence" title="证据" collapsible>
+      <p className="muted">检索模式：{r.retrievalMode || "lexical"} · 引擎 {r.evaluationEngineVersion || "unknown"}</p>
+      <div className="source-list">
+        {evidence.map((item) => (
+          <div key={item.id}>
+            <span className="mono tiny">{item.type} · {item.confidence}</span>
+            <strong>{item.title}</strong>
+            {item.note && <small>{item.note}</small>}
+            {item.url && /^https?:\/\//i.test(item.url) && (
+              <a href={item.url} target="_blank" rel="noreferrer">打开来源 ↗</a>
+            )}
+          </div>
+        ))}
+      </div>
+    </ReportSection>
+  );
+}
+export function Decisions({ r }: { r: ProjectReport }) {
+  const log = r.decisionLog || [];
+  const critic = r.criticNotes || [];
+  if (!log.length && !critic.length) return null;
+  return (
+    <ReportSection id="decisions" title="决策记录" collapsible>
+      {log.map((item) => (
+        <div className="understood-row" key={item.decision}>
+          <span>{item.decision}</span>
+          <b>{item.chosen}</b>
+        </div>
+      ))}
+      {log.map((item) => <p key={`${item.decision}-reason`} className="muted">{item.reason}{item.rejected?.length ? `；未选择：${item.rejected.join("、")}` : ""}</p>)}
+      {critic.map((note) => <p key={note}>{note}</p>)}
+    </ReportSection>
   );
 }
 export function Sources({ r }: { r: ProjectReport }) {
@@ -742,8 +822,8 @@ export function Sources({ r }: { r: ProjectReport }) {
             <span className="mono tiny">{x.type}</span>
             <strong>{x.name}</strong>
             <small>更新时间：{x.updatedAt}</small>
-            {x.url && (
-              <a href={x.url} target="_blank" rel="noreferrer">
+            {safeHref(x.url) && (
+              <a href={safeHref(x.url)} target="_blank" rel="noreferrer">
                 打开来源 ↗
               </a>
             )}
@@ -830,11 +910,15 @@ export function GithubDrawer({
         </div>
         <div className="drawer-score">
           <strong>{item.similarity}%</strong>
-          <span>项目匹配度</span>
+          <span>可解释匹配度</span>
         </div>
         {[
-          ["代码成熟度", item.maturity + "%"],
-          ["维护活跃度", item.activity + "%"],
+          ["领域重合", `${item.scoreBreakdown?.domain ?? "—"}`],
+          ["功能重合", `${item.scoreBreakdown?.feature ?? "—"}`],
+          ["技术栈", `${item.scoreBreakdown?.stack ?? "—"}`],
+          ["成熟度", `${item.scoreBreakdown?.maturity ?? item.maturity}`],
+          ["可维护性", `${item.scoreBreakdown?.maintainability ?? item.activity}`],
+          ["许可证", item.licenseUse || item.license],
           ["二次开发难度", item.difficulty],
           ["可复用比例", item.reuseRatio],
         ].map(([a, b]) => (
@@ -853,7 +937,7 @@ export function GithubDrawer({
         <p>{item.advice}</p>
         <a
           className="btn primary"
-          href={item.url}
+          href={safeHref(item.url) || "#"}
           target="_blank"
           rel="noreferrer"
         >

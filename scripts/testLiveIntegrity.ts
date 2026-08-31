@@ -5,6 +5,9 @@ import { extractRequirementProfile } from "../services/requirements/extractor";
 import { buildLiveReport } from "../services/report/builder";
 import { scoreGithubRepository } from "../services/recommendation/githubScorer";
 import { verifyReport } from "../services/evaluation/verifier";
+import { reportToMarkdown } from "../services/exportService";
+import { getQuickReport } from "../services/quickReportService";
+import { filterGithubProjects } from "../services/githubService";
 
 const project = {
   id: "live-integrity",
@@ -71,4 +74,13 @@ assert.equal(scoredB.licenseUse, "不建议商业复用");
 const verified = verifyReport(live);
 assert.ok((verified.unknownFields || []).includes("github") || (verified.unknownFields || []).includes("github:none") || (verified.needsConfirmation || []).length >= 0);
 
+assert.equal(filterGithubProjects(project, [scoredA]).length, 1);
+
+const markdown = reportToMarkdown(live);
+assert.match(markdown, /评估模型/);
+assert.match(markdown, /下一步/);
+assert.match(markdown, /未知项/);
+assert.doesNotMatch(markdown, /javascript:/i);
+const quick = getQuickReport(live);
+assert.ok(quick.primaryModels.every((model) => model.roleKind !== "evaluator") || live.models.every((model) => model.roleKind === "evaluator"));
 console.log("LIVE_REPORT_MUST_NOT_USE_MOCK passed");

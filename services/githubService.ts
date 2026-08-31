@@ -143,6 +143,7 @@ export function filterGithubProjects(
   );
   return items
     .filter((item) => {
+      if (item.scoreBreakdown || item.source === "live") return true;
       const repo = item.repo.toLowerCase();
       const text = `${item.repo} ${item.name} ${item.description} ${(item.capabilities || []).join(" ")} ${(item.stack || []).join(" ")}`.toLowerCase();
       return (

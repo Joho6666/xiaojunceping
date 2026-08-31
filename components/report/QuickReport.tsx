@@ -184,13 +184,23 @@ export function QuickReport({
           ))}
         </div>
       </section>
+      {(report.nextActions?.length || report.unknownFields?.length) ? (
+        <section className="quick-section">
+          <span className="eyebrow">证据不足时先确认</span>
+          <h2>下一步与未知项</h2>
+          <ol className="next-action-list">
+            {(report.nextActions || []).map((item) => <li key={item}>{item}</li>)}
+          </ol>
+          <div className="missing">{(report.unknownFields || []).map((item) => <span key={item}>{item}</span>)}</div>
+        </section>
+      ) : null}
       <section className="quick-cta card">
         <div>
           <span className="eyebrow">下一步</span>
-          <h2>方案已经足够清晰，可以开始执行</h2>
+          <h2>{report.unknownFields?.length ? "先确认未知项，再开始施工" : "可以开始执行"}</h2>
           <p>
-            生成一份适合 Coding Agent
-            直接使用的执行上下文，或升级查看完整专家分析。
+            {report.evaluator ? `评估模型 ${report.evaluator.provider}/${report.evaluator.model} 只负责生成报告。` : ""}
+            生成一份适合 Coding Agent 直接使用的执行上下文，或升级查看完整专家分析。
           </p>
         </div>
         <div>
