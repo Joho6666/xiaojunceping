@@ -35,7 +35,7 @@ export function verifyReport(report: ProjectReport): ProjectReport {
   for (const stack of report.techStack || []) {
     if (stack.name.includes("待确认") || stack.name === "待确认技术栈") needsConfirmation.push(`tech:${stack.name}`);
   }
-  if (!github.length) unknownFields.push("github:none");
+  if (!github.length && unknownFields.includes("github")) unknownFields.push("github:none");
   if (report.estimates.cost.display === "unknown") unknownFields.push("cost");
   if (report.estimates.time.range === "insufficient_evidence") unknownFields.push("time");
 

@@ -14,7 +14,7 @@ assert.ok(!(stm32.platforms || []).includes("Web"));
 assert.ok(!(stm32.platforms || []).includes("web"));
 assert.ok((stm32.preferredStack || []).includes("Keil"));
 assert.ok(stm32.requiredFeatures?.includes("firmware"));
-assert.notEqual(stm32.needsGithub, true && stm32.needsGithub === (true as boolean) && false);
+assert.equal(stm32.needsGithub, false);
 assert.ok(Array.isArray(stm32.integrations));
 assert.notEqual(stm32.numberOfIntegrations, stm32.stack.length || -1);
 

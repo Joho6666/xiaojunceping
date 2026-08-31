@@ -45,13 +45,13 @@ export function extractRequirementProfile(project: Project, answers: Record<stri
   if (has(lower, /匹配|交友|推荐/)) addFeature("matching", "匹配推荐", "matching");
   if (has(lower, /个人资料|资料|profile/)) addFeature("profile", "用户资料", "profile");
   if (has(lower, /定位|位置|location/)) addFeature("location", "位置服务", "location");
-  if (has(lower, /电商|购物|商品|支付|订单|sku|库存/)) {
+  if (has(lower, /电商|购物|商品|订单|sku|库存/)) {
     addFeature("catalog", "商品目录", "ecommerce");
     addFeature("cart", "购物车与订单", "commerce");
-    if (has(lower, /支付|stripe|微信|支付宝/)) {
-      addFeature("payment", "支付", "payments");
-      addIntegration("payment", has(lower, /stripe/) ? "Stripe" : "payment-provider");
-    }
+  }
+  if (has(lower, /支付|stripe|微信|支付宝/)) {
+    addFeature("payment", "支付", "payments");
+    addIntegration("payment", has(lower, /stripe/) ? "Stripe" : "payment-provider");
   }
   if (has(lower, /视频|剪辑|字幕|tiktok|抖音/)) addFeature("video-pipeline", "视频处理", "video");
   if (has(lower, /字幕|whisper|转写/)) addFeature("subtitles", "字幕与转写", "subtitle");
@@ -85,7 +85,7 @@ export function extractRequirementProfile(project: Project, answers: Record<stri
   if (has(lower, /聊天|im|websocket/)) addIntegration("im", "realtime-chat");
 
   if (has(lower, /windows|桌面|electron/)) platforms.push("desktop");
-  if (has(lower, /ios|android|小程序|移动/)) platforms.push("mobile");
+  if (has(lower, /ios|android|小程序|移动|手机/)) platforms.push("mobile");
   if (has(lower, /网站|web|saas|网页/) || has(lower, /后台/) && !domains.some((item) => item.name === "embedded")) platforms.push("web");
   if (has(lower, /stm32|esp32|单片机|嵌入式|温控|固件/) && !platforms.includes("embedded-device")) platforms.push("embedded-device");
   if (has(lower, /本地|self-host|私有部署/)) platforms.push("Self-host");
@@ -97,7 +97,7 @@ export function extractRequirementProfile(project: Project, answers: Record<stri
   const researchOnly = has(lower, /值不值得|是否值得|值得做|值不值|评估一下|帮我判断/);
   const implement = has(lower, /开发|实现|构建|写出|部署|上线|修改代码|温控|治具|小程序|网站|系统/) && !researchOnly;
   const wantsRepos = has(lower, /github|开源|仓库|二开|参考项目/);
-  const needsGithub = !researchOnly && (implement || wantsRepos || domains.some((item) => ["web", "commerce", "developer-tool", "ai-agent"].includes(item.name)));
+  const needsGithub = !researchOnly && (wantsRepos || domains.some((item) => ["web", "commerce", "developer-tool"].includes(item.name)));
   const needsLiveSearch = needsGithub || has(lower, /竞品|官方|定价|文档/);
 
   const goals = unique([project.idea.slice(0, 180)]);

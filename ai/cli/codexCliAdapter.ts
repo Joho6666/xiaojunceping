@@ -36,19 +36,19 @@ export const codexCliAdapter = {
   ...createCLIAdapter("openai"),
   async healthCheck(): Promise<CLIStatus> {
     try {
-      const command = process.env.CODEX_CLI_PATH || "codex.cmd";
-      const raw = await runCLI(command, ["login", "status"], { prompt: "", timeoutMs: 10000, maxOutputBytes: 100_000 }, process.platform === "win32", true);
+      const command = process.platform === "win32" ? "codex.cmd" : "codex";
+      const raw = await runCLI(command, ["login", "status"], { prompt: "", timeoutMs: 10000, maxOutputBytes: 100_000 }, false, true);
       const authenticated = /logged in|已登录/i.test(raw);
       return { available: true, authenticated, command, message: authenticated ? "Codex CLI 已登录" : "Codex CLI 未登录" };
     } catch (error) {
       const code = error instanceof Error ? error.message : "CLI_UNAVAILABLE";
-      return { available: false, authenticated: false, command: process.env.CODEX_CLI_PATH || "codex.cmd", message: code === "ENOENT" ? "未找到 Codex CLI" : code.includes("TIMEOUT") ? "Codex CLI 响应超时" : "Codex CLI 不可用" };
+      return { available: false, authenticated: false, command: process.platform === "win32" ? "codex.cmd" : "codex", message: code === "ENOENT" ? "未找到 Codex CLI" : code.includes("TIMEOUT") ? "Codex CLI 响应超时" : "Codex CLI 不可用" };
     }
   },
   async generateText(request: StructuredRequest) {
     const model = request.model || process.env.CODEX_MODEL || process.env.AI_REASONING_MODEL;
     const modelArgs = model ? ["--model", model] : [];
-    const raw = await runCLI(process.env.CODEX_CLI_PATH || "codex.cmd", ["--search", "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", ...modelArgs, "-"], request, process.platform === "win32");
+    const raw = await runCLI(process.platform === "win32" ? "codex.cmd" : "codex", ["--search", "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", ...modelArgs, "-"], request, false);
     return extractCodexMessage(raw);
   },
   async generateStructured<T>(request: StructuredRequest) {
@@ -58,7 +58,7 @@ export const codexCliAdapter = {
 };
 
 export async function listCodexModels(): Promise<CodexModelOption[]> {
-  const raw = await runCLI(process.env.CODEX_CLI_PATH || "codex.cmd", ["debug", "models"], { prompt: "", timeoutMs: 15000, maxOutputBytes: 2_000_000 }, process.platform === "win32");
+  const raw = await runCLI(process.platform === "win32" ? "codex.cmd" : "codex", ["debug", "models"], { prompt: "", timeoutMs: 15000, maxOutputBytes: 2_000_000 }, false);
   const parsed = JSON.parse(raw) as { models?: Array<{ slug?: string; display_name?: string; visibility?: string }> };
   return (parsed.models || [])
     .filter((item) => item.visibility !== "hide" && typeof item.slug === "string" && item.slug.trim())

@@ -50,6 +50,13 @@ function licenseFit(spdx: string): { score: number; use: GithubProjectRecommenda
   return { score: 55, use: "架构参考" };
 }
 
+const githubEvidenceById = new Map<string, Evidence>();
+
+function rememberGithubEvidence(item: GithubProjectRecommendation, evidence: Evidence[]) {
+  evidence.forEach((entry) => githubEvidenceById.set(entry.id, entry));
+  item.evidenceIds = evidence.map((entry) => entry.id);
+}
+
 export function scoreGithubRepository(profile: RequirementProfile, item: GithubCandidate): GithubProjectRecommendation {
   const description = String(item.description || "暂无项目简介").replace(/\s+/g, " ").slice(0, 180);
   const topics = Array.isArray(item.topics) ? item.topics.filter((topic): topic is string => typeof topic === "string") : [];
@@ -74,11 +81,13 @@ export function scoreGithubRepository(profile: RequirementProfile, item: GithubC
       title: String(item.full_name || item.name),
       url: String(item.html_url || ""),
       confidence: String(item.html_url || "").startsWith("http") ? "high" : "low",
-      verifiedAt: new Date().toISOString(),
       note: `stars=${stars}; pushed=${item.pushed_at || item.updated_at || "unknown"}; license=${item.license?.spdx_id || "unknown"}`,
+      claims: [
+        { id: `license-${item.full_name || item.name}`, statement: `Repo License = ${item.license?.spdx_id || "unknown"}`, field: "license", verificationStatus: "unverified" },
+      ],
     }),
   ];
-  return {
+  const recommendation: GithubProjectRecommendation = {
     id: `github-${String(item.id || item.full_name || item.name)}`,
     name: String(item.name || "未命名仓库"),
     repo: String(item.full_name || ""),
@@ -112,18 +121,24 @@ export function scoreGithubRepository(profile: RequirementProfile, item: GithubC
     pushedAt: item.pushed_at,
     createdAt: item.created_at,
   };
+  rememberGithubEvidence(recommendation, evidence);
+  return recommendation;
 }
 
 export function attachGithubEvidence(items: GithubProjectRecommendation[]): Evidence[] {
-  return items.map((item) =>
-    createEvidence({
+  return items.flatMap((item) => {
+    const existing = (item.evidenceIds || []).map((id) => githubEvidenceById.get(id)).filter((entry): entry is Evidence => Boolean(entry));
+    if (existing.length) return existing;
+    const fallback = createEvidence({
       id: item.evidenceIds?.[0],
       type: "github",
       title: item.repo || item.name,
       url: item.url,
       confidence: item.url.startsWith("http") ? "high" : "low",
-      verifiedAt: new Date().toISOString(),
       note: item.advice,
-    }),
-  );
+      claims: item.license ? [{ id: `${item.evidenceIds?.[0] || item.id}-license`, statement: `Repo License = ${item.license}`, field: "license", verificationStatus: "unverified" }] : undefined,
+    });
+    rememberGithubEvidence(item, [fallback]);
+    return [fallback];
+  });
 }

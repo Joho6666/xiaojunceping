@@ -1,3 +1,5 @@
+import { EMBEDDING_BATCH_SIZE } from "./weights";
+
 export interface EmbeddingProvider {
   id: string;
   available(): boolean;
@@ -22,15 +24,23 @@ export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
   }
   async embed(texts: string[]): Promise<number[][]> {
     if (!this.available() || !texts.length) return [];
-    const response = await fetch(`${this.options.baseUrl.replace(/\/$/, "")}/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.options.apiKey}` },
-      body: JSON.stringify({ model: this.options.model, input: texts.slice(0, 32) }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!response.ok) return [];
-    const data = (await response.json()) as { data?: Array<{ embedding?: number[] }> };
-    return (data.data || []).map((item) => item.embedding || []);
+    const output: number[][] = [];
+    for (let offset = 0; offset < texts.length; offset += EMBEDDING_BATCH_SIZE) {
+      const batch = texts.slice(offset, offset + EMBEDDING_BATCH_SIZE);
+      const origin = this.options.baseUrl.replace(/\/$/, "");
+      const response = await fetch(`${origin}/embeddings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.options.apiKey}` },
+        body: JSON.stringify({ model: this.options.model, input: batch }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!response.ok) throw new Error(`EMBEDDING_HTTP_${response.status}`);
+      const data = (await response.json()) as { data?: Array<{ embedding?: number[] }> };
+      const vectors = (data.data || []).map((item) => item.embedding || []);
+      if (vectors.length !== batch.length) throw new Error("EMBEDDING_BATCH_MISMATCH");
+      output.push(...vectors);
+    }
+    return output;
   }
 }
 

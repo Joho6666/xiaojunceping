@@ -4,14 +4,25 @@ export interface GoldenCase {
   required: string[];
   forbidden: string[];
   domains: string[];
+  expectedDomains?: string[];
+  requiredFeatures?: string[];
+  expectedTopTools?: string[];
+  expectedAgents?: string[];
+  expectedModels?: string[];
+  expectedGithubTopics?: string[];
+  forbiddenTools?: string[];
+  forbiddenAgents?: string[];
+  forbiddenDomains?: string[];
+  expectedReadiness?: string;
+  expectedBlockingQuestions?: string[];
 }
 
 export const goldenCases: GoldenCase[] = [
   { id: "stm32-temp", idea: "STM32 温控系统，需要固件、传感器采集和 PID 控制", required: ["embedded", "firmware", "STM32"], forbidden: ["FFmpeg", "Shopify", "TikTok"], domains: ["embedded"] },
-  { id: "tiktok-cut", idea: "AI TikTok 自动剪辑，长视频切片并生成字幕", required: ["video", "字幕", "FFmpeg"], forbidden: ["KiCad", "Gerber", "STM32"], domains: ["video"] },
-  { id: "campus-social", idea: "校园交友平台，需要登录、资料、匹配、聊天和内容审核", required: ["login", "profile", "matching", "chat", "moderation"], forbidden: ["CAD", "PCB", "FFmpeg"], domains: ["education"] },
+  { id: "tiktok-cut", idea: "AI TikTok 自动剪辑，长视频切片并生成字幕", required: ["video", "字幕", "FFmpeg"], forbidden: ["KiCad", "Gerber", "STM32"], domains: ["video"], expectedAgents: ["视频处理 Agent"] },
+  { id: "campus-social", idea: "校园交友平台，需要登录、资料、匹配、聊天和内容审核", required: ["login", "profile", "matching", "chat", "moderation"], forbidden: ["CAD", "PCB", "FFmpeg"], domains: ["education"], expectedAgents: ["认证 Agent", "即时通讯 Agent", "匹配 Agent"] },
   { id: "wave-solder", idea: "波峰焊治具 CAD 自动生成，从 Gerber 生成 DXF 几何", required: ["CAD", "Gerber", "DXF"], forbidden: ["Shopify", "TikTok", "Blog"], domains: ["cad", "industrial"] },
-  { id: "fashion-shop", idea: "卖衣服的电商网站，支持商品、SKU、库存、购物车和支付", required: ["ecommerce", "catalog", "payment"], forbidden: ["FFmpeg", "KiCad"], domains: ["commerce", "web"] },
+  { id: "fashion-shop", idea: "卖衣服的电商网站，支持商品、SKU、库存、购物车和支付", required: ["ecommerce", "catalog", "payment"], forbidden: ["FFmpeg", "KiCad"], domains: ["commerce", "web"], expectedTopTools: ["GitHub MCP", "Playwright"], expectedAgents: ["支付集成 Agent"], expectedGithubTopics: ["commerce", "medusa"] },
   { id: "email-flow", idea: "自动处理邮件的工作流，失败要重试", required: ["automation"], forbidden: ["FFmpeg", "Gerber"], domains: ["automation"] },
   { id: "ai-saas", idea: "做一个 AI SaaS 网站，需要账号系统和后台", required: ["web", "login", "admin"], forbidden: ["Gerber", "SolidWorks"], domains: ["web"] },
   { id: "industrial-agent", idea: "STM32 + Web 后台 + AI Agent 工业检测系统", required: ["embedded", "web", "ai-agent"], forbidden: ["TikTok", "Shopify"], domains: ["embedded", "web", "ai-agent", "industrial"] },
@@ -27,7 +38,7 @@ export const goldenCases: GoldenCase[] = [
   { id: "firmware-ota", idea: "STM32 固件 OTA 升级和设备管理后台", required: ["embedded", "firmware"], forbidden: ["TikTok", "字幕"], domains: ["embedded", "web"] },
   { id: "matching-app", idea: "同城交友 App，定位、资料和匹配聊天", required: ["matching", "chat", "location"], forbidden: ["CAD", "PCB"], domains: ["mobile"] },
   { id: "kicad-board", idea: "KiCad 画电源板，需要 BOM、ERC 和 DRC", required: ["pcb"], forbidden: ["FFmpeg", "Shopify"], domains: ["pcb"] },
-  { id: "stm32-keil", idea: "STM32 温控器，使用 Keil，读取 DS18B20，OLED 显示", required: ["embedded", "firmware", "Keil"], forbidden: ["Shopify", "FFmpeg"], domains: ["embedded"] },
+  { id: "stm32-keil", idea: "STM32 温控器，使用 Keil，读取 DS18B20，OLED 显示", required: ["embedded", "firmware", "Keil"], forbidden: ["Shopify", "FFmpeg"], domains: ["embedded"], expectedAgents: ["固件 Agent"], expectedReadiness: "prototype_ready" },
   { id: "campus-mini", idea: "校园交友小程序，需要匹配、聊天、资料页、内容审核", required: ["matching", "chat", "moderation"], forbidden: ["CAD", "PCB"], domains: ["mobile", "education"] },
   { id: "vague-ai", idea: "我要做一个 AI 项目", required: ["AI"], forbidden: ["KiCad"], domains: [] },
   { id: "wave-dxf", idea: "波峰焊治具自动出图系统，输入 Gerber，输出 DXF", required: ["cad", "Gerber", "DXF"], forbidden: ["Shopify", "TikTok"], domains: ["cad", "industrial"] },
@@ -57,4 +68,44 @@ export const goldenCases: GoldenCase[] = [
   { id: "audio-tts", idea: "TTS 配音和播客转写", required: ["audio"], forbidden: ["Gerber"], domains: ["audio"] },
   { id: "agent-win", idea: "Windows 本机 Agent 调终端改代码", required: ["desktop", "developer-tool"], forbidden: ["Shopify"], domains: ["desktop", "ai-agent"] },
   { id: "shop-sku", idea: "服装商城 SKU 库存购物车", required: ["commerce"], forbidden: ["FFmpeg"], domains: ["commerce"] },
+  { id: "stm32-dash", idea: "STM32 采集温湿度，并做 Web Dashboard", required: ["embedded", "web"], forbidden: ["FFmpeg"], domains: ["embedded", "web"] },
+  { id: "esp32-win-agent", idea: "ESP32 语音助手调用 Windows Codex 改代码", required: ["embedded", "desktop", "ai-agent"], forbidden: ["Shopify"], domains: ["embedded", "desktop", "ai-agent"] },
+  { id: "cad-pcb-factory", idea: "CAD 治具 + PCB 载板 + 工厂产线", required: ["cad", "pcb", "industrial"], forbidden: ["TikTok"], domains: ["cad", "pcb", "industrial"] },
+  { id: "video-shop", idea: "短视频带货商城，切片和支付", required: ["video", "commerce"], forbidden: ["KiCad"], domains: ["video", "commerce"] },
+  { id: "mobile-ai-social", idea: "移动端 AI 社交匹配和聊天", required: ["mobile", "matching", "chat"], forbidden: ["Gerber"], domains: ["mobile"] },
+  { id: "vague-platform", idea: "做一个平台", required: ["平台"], forbidden: ["KiCad"], domains: [] },
+  { id: "money-tool", idea: "我要赚钱的工具", required: ["工具"], forbidden: ["Gerber"], domains: [] },
+  { id: "pc-auto", idea: "帮我自动控制电脑", required: ["desktop"], forbidden: ["Shopify"], domains: ["desktop"] },
+  { id: "keil-oled", idea: "Keil 工程读取 DS18B20 在 OLED 显示", required: ["embedded", "firmware", "Keil"], forbidden: ["FFmpeg"], domains: ["embedded"] },
+  { id: "mini-moderation", idea: "校园小程序内容审核和实名", required: ["mobile", "moderation"], forbidden: ["CAD"], domains: ["mobile", "education"] },
+  { id: "agent-mcp-local", idea: "本机 MCP Agent 操作文件系统", required: ["ai-agent"], forbidden: ["TikTok"], domains: ["ai-agent"] },
+  { id: "industrial-web", idea: "工厂检测数据上 Web 后台", required: ["industrial", "web"], forbidden: ["FFmpeg"], domains: ["industrial", "web"] },
+  { id: "audio-agent", idea: "语音唤醒后让 Agent 执行终端命令", required: ["audio", "ai-agent"], forbidden: ["KiCad"], domains: ["audio", "ai-agent"] },
+  { id: "pcb-cad-dxf", idea: "从 Gerber 生成 DXF 治具轮廓", required: ["pcb", "cad", "DXF"], forbidden: ["Shopify"], domains: ["pcb", "cad"] },
+  { id: "saas-mini", idea: "SaaS 后台也要出小程序", required: ["web", "mobile"], forbidden: ["Gerber"], domains: ["web", "mobile"] },
+  { id: "edu-video", idea: "教育课程自动剪辑字幕", required: ["education", "video"], forbidden: ["KiCad"], domains: ["education", "video"] },
+  { id: "data-agent", idea: "数据报表 Agent 自动拉数", required: ["data", "ai-agent"], forbidden: ["FFmpeg"], domains: ["data", "ai-agent"] },
+  { id: "desktop-cad", idea: "Windows 桌面 CAD 出图工具", required: ["desktop", "cad"], forbidden: ["TikTok"], domains: ["desktop", "cad"] },
+  { id: "embed-pay", idea: "自助终端 STM32 加上支付二维码", required: ["embedded", "payment"], forbidden: ["FFmpeg"], domains: ["embedded"] },
+  { id: "local-script", idea: "本机脚本整理文件夹", required: ["本机"], forbidden: ["Shopify"], domains: [] },
+  { id: "hard-stm32-web", idea: "STM32 采集 + Web Dashboard 监控", required: ["embedded", "web"], forbidden: ["TikTok"], domains: ["embedded", "web"], expectedDomains: ["embedded", "web"], expectedAgents: ["固件 Agent"] },
+  { id: "hard-esp32-agent-win", idea: "ESP32 语音助手调用 Windows Agent 改代码", required: ["embedded", "desktop"], forbidden: ["Shopify"], domains: ["embedded", "desktop", "ai-agent"], expectedAgents: ["本机 Agent"] },
+  { id: "hard-cad-pcb-factory", idea: "CAD 治具和 PCB 载板一起做工厂产线", required: ["cad", "pcb", "industrial"], forbidden: ["FFmpeg"], domains: ["cad", "pcb", "industrial"] },
+  { id: "hard-video-ecom", idea: "短视频带货，切片字幕和支付订单", required: ["video", "commerce"], forbidden: ["KiCad"], domains: ["video", "commerce"], expectedAgents: ["视频处理 Agent", "支付集成 Agent"] },
+  { id: "hard-mobile-ai-social", idea: "手机 AI 社交，匹配聊天和审核", required: ["mobile", "matching", "chat"], forbidden: ["Gerber"], domains: ["mobile"], expectedAgents: ["匹配 Agent", "即时通讯 Agent"] },
+  { id: "hard-vague-ai", idea: "AI 项目", required: ["AI"], forbidden: ["KiCad"], domains: [], expectedReadiness: "needs_clarification" },
+  { id: "hard-platform", idea: "帮我做一个平台", required: ["平台"], forbidden: ["Gerber"], domains: [], expectedReadiness: "needs_clarification" },
+  { id: "hard-douyin", idea: "做一个类似抖音", required: ["video"], forbidden: ["KiCad"], domains: ["video"] },
+  { id: "hard-money", idea: "我想做一个赚钱的工具", required: ["工具"], forbidden: ["PCB"], domains: [], expectedReadiness: "needs_clarification" },
+  { id: "hard-pc-control", idea: "帮我自动控制电脑桌面", required: ["desktop"], forbidden: ["Shopify"], domains: ["desktop"] },
+  { id: "hard-kicad-stm32", idea: "STM32 最小系统，KiCad 原理图和 Gerber", required: ["pcb", "embedded"], forbidden: ["TikTok"], domains: ["pcb", "embedded"] },
+  { id: "hard-n8n-shop", idea: "n8n 把电商订单推到 ERP", required: ["automation", "commerce"], forbidden: ["FFmpeg"], domains: ["automation", "commerce"] },
+  { id: "hard-whisper-edu", idea: "课程视频自动切片和 Whisper 字幕", required: ["education", "video"], forbidden: ["KiCad"], domains: ["education", "video"] },
+  { id: "hard-ios-pay", idea: "iOS 订阅 App，登录和支付", required: ["mobile", "payment"], forbidden: ["Gerber"], domains: ["mobile"] },
+  { id: "hard-wpf-plc", idea: "WPF 上位机连 PLC 和工业相机", required: ["desktop", "industrial"], forbidden: ["TikTok"], domains: ["desktop", "industrial"] },
+  { id: "hard-local-mcp", idea: "本机 MCP Agent 操作文件系统和终端", required: ["ai-agent"], forbidden: ["Shopify"], domains: ["ai-agent"] },
+  { id: "hard-saas-stripe", idea: "SaaS 网站 Next.js Stripe 后台", required: ["web", "payment"], forbidden: ["Gerber"], domains: ["web", "commerce"] },
+  { id: "hard-audio-agent", idea: "语音唤醒后让 Agent 跑终端命令", required: ["audio", "ai-agent"], forbidden: ["KiCad"], domains: ["audio", "ai-agent"] },
+  { id: "hard-embed-qr-pay", idea: "自助终端 STM32 加支付二维码", required: ["embedded", "payment"], forbidden: ["FFmpeg"], domains: ["embedded"] },
+  { id: "hard-data-agent", idea: "数据报表 Agent 自动拉数和告警", required: ["data", "ai-agent"], forbidden: ["FFmpeg"], domains: ["data", "ai-agent"] },
 ];

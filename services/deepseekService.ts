@@ -161,7 +161,7 @@ export async function generateDeepSeekEvaluation(
         );
       }
       throw new DeepSeekError(
-        response.status === 401 ? "INVALID_API_KEY" : "PROVIDER_ERROR",
+        response.status === 401 ? "AUTH_FAILED" : "PROVIDER_ERROR",
         detail || `DeepSeek 请求失败（${response.status}）。`,
       );
     }
@@ -258,7 +258,7 @@ export async function generateDeepSeekSearchPlan(
     const raw = await response.text();
     if (!response.ok)
       throw new DeepSeekError(
-        response.status === 401 ? "INVALID_API_KEY" : "PROVIDER_ERROR",
+        response.status === 401 ? "AUTH_FAILED" : "PROVIDER_ERROR",
         `DeepSeek 搜索计划失败（${response.status}）。`,
       );
     const payload = JSON.parse(raw) as {

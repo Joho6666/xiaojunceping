@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { goldenCases } from "../tests/evaluation-cases/cases";
 import { extractRequirementProfile } from "../services/requirements/extractor";
 import { buildLiveReport } from "../services/report/builder";
 import { retrieveKnowledgeHybrid } from "../services/retrieval/hybrid";
 import { applyKnowledgeRules } from "../services/knowledgeRuleEngine";
+
+process.env.AGENTSCOPE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "golden-"));
 
 for (const testCase of goldenCases) {
   const project = { id: testCase.id, idea: testCase.idea, kind: "general" as const, evaluationMode: "quick" as const, createdAt: new Date().toISOString() };
@@ -42,7 +47,7 @@ for (const testCase of goldenCases) {
     assert.ok((profile.domains || []).some((item) => item.name === domain) || profile.domain.includes(domain) || blob.includes(domain), `${testCase.id} missing domain ${domain}`);
   }
   assert.equal(report.generationMode, "live");
-  assert.equal(report.evaluationEngineVersion, "v2.2.0");
+  assert.equal(report.evaluationEngineVersion, "v2.4.0");
   assert.equal(report.models[0]?.roleKind, "evaluator");
 }
 console.log(`golden evaluation cases passed: ${goldenCases.length}`);

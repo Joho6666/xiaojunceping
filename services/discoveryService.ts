@@ -8,7 +8,7 @@ import {
 } from "../types";
 import { extractRequirementProfile } from "./requirementExtractionService";
 import { listKnowledgeItems } from "./knowledgeBaseService";
-import { retrieveKnowledge } from "./knowledgeRetrievalService";
+import { retrieveKnowledgeAsync } from "./knowledgeRetrievalService";
 import { applyKnowledgeRules } from "./knowledgeRuleEngine";
 import { searchGithubProjects } from "./githubService";
 import { getCapabilitySecret } from "./capabilityService";
@@ -79,7 +79,8 @@ function snapshotGithub(profile: RequirementProfile): GithubProjectRecommendatio
 
 export async function discoverProjectEcosystem(project: Project, answers: Record<string, AnswerValue> = {}, searchHints: string[] = []) {
   const profile = extractRequirementProfile(project, answers);
-  const rawKnowledge = retrieveKnowledge(profile);
+  const retrieved = await retrieveKnowledgeAsync(profile);
+  const rawKnowledge = retrieved.matches;
   const knowledgeMatches = applyKnowledgeRules(profile, rawKnowledge);
   let githubProjects: GithubProjectRecommendation[] = [];
   let liveSearchAt: string | undefined;

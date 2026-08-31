@@ -2,6 +2,7 @@ import { GithubProjectRecommendation, Project, ProjectKind, RequirementProfile }
 import { isCommerceProject, profileFor } from "../data/projectProfiles";
 import { scoreGithubRepository } from "./recommendation/githubScorer";
 import { extractRequirementProfile } from "./requirements/extractor";
+import { safeFetch } from "./net/safeFetch";
 
 const keywords: Record<ProjectKind, string> = {
   video: "AI video editing FFmpeg",
@@ -173,7 +174,7 @@ export async function searchGithubProjects(
     const [curatedItems, searchItems] = await Promise.all([
       Promise.all(
         curated[project.kind].map(async (repo) => {
-          const response = await fetch(`https://api.github.com/repos/${repo}`, {
+          const response = await safeFetch(`https://api.github.com/repos/${repo}`, {
             headers: {
               Accept: "application/vnd.github+json",
               "User-Agent": "AgentScope-Evaluator",
@@ -194,7 +195,7 @@ export async function searchGithubProjects(
         )
           .slice(0, 6)
           .map(async (query) => {
-            const response = await fetch(
+            const response = await safeFetch(
               `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=6`,
               {
                 headers: {
@@ -255,7 +256,7 @@ export async function verifyGithubUrls(
     return match?.[1]?.replace(/\.git$/, "");
   }).filter((repo): repo is string => Boolean(repo))));
   const responses = await Promise.all(repos.slice(0, 16).map(async (repo) => {
-    const response = await fetch(`https://api.github.com/repos/${repo}`, { headers: { Accept: "application/vnd.github+json", "User-Agent": "AgentScope-Evaluator", ...(options.githubToken ? { Authorization: `Bearer ${options.githubToken}` } : {}) }, signal: AbortSignal.timeout(12000) });
+    const response = await safeFetch(`https://api.github.com/repos/${repo}`, { headers: { Accept: "application/vnd.github+json", "User-Agent": "AgentScope-Evaluator", ...(options.githubToken ? { Authorization: `Bearer ${options.githubToken}` } : {}) }, signal: AbortSignal.timeout(12000) });
     return response.ok ? await response.json() as Record<string, unknown> : null;
   }));
   return responses.filter((item): item is Record<string, unknown> => Boolean(item)).map((item) => ({ ...mapRepository(item, profile), source: "live" as const })).sort((a, b) => b.similarity - a.similarity);

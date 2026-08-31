@@ -108,7 +108,13 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 
 `domain * 0.28 + featureOverlap * 0.24 + stackFit * 0.18 + maturity * 0.12 + maintainability * 0.12 + licenseFit * 0.06`
 
-知识库检索默认是 corpus 级 BM25 + 中文 n-gram（`retrievalMode = lexical`）。配置齐全 `EMBEDDING_*` 时，live 路径会走 `retrieveKnowledgeHybridAsync` 计算 cosine；缺任一配置不会把报告标成 hybrid。
+知识库检索一次统一：
+
+`BM25 Top 40 ∪ Semantic Top 40（全库 cosine / VectorIndex）→ 硬过滤 unpublished/inactive/平台/敏感度 → ruleRerank Top 15`
+
+Hybrid 权重固定为 `lexical 0.35 + semantic 0.40 + metadata 0.15 + source 0.10`。Embedding 不可用时整次 `retrievalMode = lexical`，并对 `lexical/metadata/source` **重归一一次**，所有候选共用；某维缺失填 `null` 按 0 计，不再按候选重归一。BM25 与 cosine 都先 min-max 到 `[0,1]`。
+
+未配置 `EMBEDDING_*` 时默认是 corpus 级 BM25 + 中文 n-gram（`retrievalMode = lexical`）。live 路径走 `retrieveKnowledgeHybridAsync`；HTTP 失败不会静默截断语料，整次回退 lexical。
 
 评估模型（evaluator）和执行模型（executionModels）分开。用户选 Codex 来生成报告，不会自动把它写成“本项目最适合的开发模型”。
 
@@ -118,8 +124,14 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 
 ## Quick vs Expert
 
-- **Quick**：需求抽取 → Completeness → 本地检索 → 可选 GitHub → 报告。
-- **Expert**：Requirement Gate。完整度不足时拦截 Architecture，只返回 3–5 个关键问题。通过后才做研究、Critic、Verifier 和 Readiness。
+- **Quick**：Requirement Analyst → Completeness Gate。Gate 失败时先 `validExecutionPlan: false` 再出报告，不计 Plan Version。成功则检索 → Router → Estimator → 报告。Quick **不跑** LLM Critic。
+- **Expert**：Requirement Analyst → Researcher → Architect → Router → Estimator → Rule Critic → optional LLM Critic → Verifier → Final Judge。无独立 critic 模型时 `mode: optional-rule-fallback`，只输出 blockingIssues / warnings / disagreements / suggestedChanges，**不得改** Star、License、Model ID、Pricing。完整度不足不计正式 Plan Version。
+
+Readiness 是工程启发式，不是审计：
+
+- **Prototype Ready**：核心需求明确 + 核心 feature 有 acceptance + 技术路径可行 + 无 prototype blocking。hosting cost unknown **不挡** Prototype。
+- **Development Ready**：completeness ≥ 0.7 + architecture 完整 + required features 全映射到 task + 关键栈/外部 API 确认 + 无 development blocking。`needsGithub` 时才要 verified GitHub；本地 STM32 无 GitHub 仍可 development_ready。核心芯片 unknown **挡** Development。
+- **Production Ready**：在 development 之上再查 security / observability / deployment / backup / data lifecycle / rate limit / failure recovery / compliance / performance。这是规则启发式，不是生产审计。
 
 ## Confidence
 
@@ -131,10 +143,27 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 - 没有 Embedding Provider 时检索不是语义搜索。
 - Hosting / Database / SaaS 成本经常是 `unknown`，除非知识库有可核验单价。
 - 本机仍是单用户优先；历史已写入 SQLite（`projects.sqlite` / `reports.sqlite`），浏览器 localStorage 只作缓存。
+- Production Ready 目前是工程启发式（security/observability 等规则），不是生产审计。
+- LLM Critic 为 optional；无独立 critic 模型时回退规则，不会修改事实字段。
 
 ## Evaluation benchmark
 
-`tests/evaluation-cases/` 目前有 50 个黄金案例。CI 额外跑 `test:requirements`、`test:retrieval`、`test:ranking`、`test:verification`、`test:readiness`、`test:traceability`、`test:benchmark`。
+`tests/evaluation-cases/` 目前有 90 条黄金案例（含跨域/模糊需求）。本轮离线真实成绩（知识库 + stub GitHub，不打外网）：Domain F1 ≈ 0.91，Feature Recall ≈ 0.99，Tool P@5 ≈ 0.50，Agent Recall@5 = 1.00，GitHub NDCG@5 = 1.00，Evidence Coverage = 1.00，Hallucination Rate = 0.00，Readiness Accuracy = 1.00。`npm run test:benchmark` 打印：
+
+```text
+AgentScope Benchmark
+Cases: N
+Domain F1: …
+Feature Recall: …
+Tool P@5: …
+Agent Recall@5: …
+GitHub NDCG@5: …
+Evidence Coverage: …
+Hallucination Rate: …
+Readiness Accuracy: …
+```
+
+回归：Domain F1 / Feature Recall / Evidence Coverage / Readiness Accuracy 掉 > 0.03 则失败。baseline 来自本轮真实跑分，不把 case 数量当成绩。
 
 ## 能力概览
 
@@ -201,19 +230,11 @@ npm run knowledge:sync
 ```bash
 npm run lint
 npm run typecheck
-npm run test:reports
-npm run test:knowledge
-npm run test:knowledge-coverage
-npm run test:local-discovery
-npm run test:customization
-npm run test:prompt
-	npm run test:discovery
-	npm run test:cli
-	npm run test:report-store
-	npm run test:golden
-	npm run test:live-integrity
-	npm run build
+npm test
+npm run build
 ```
+
+`npm test` 覆盖：reports、knowledge、knowledge-coverage、local-discovery、customization、prompt、discovery、cli、report-store、golden、live-integrity、requirements、retrieval（含 Case E 第 200 条语义）、ranking、verification、readiness（Case B/C/D）、traceability、benchmark、history、evidence-integrity（Case A）、hybrid-scoring、embedding-cache、unknown-classification、plan-version（Case G）、task-dag（Case F）、model-verification、expert-pipeline、benchmark-regression。
 
 ## 项目结构
 

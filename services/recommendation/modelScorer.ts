@@ -1,36 +1,65 @@
-import { Evidence, ModelRecommendation, RequirementProfile } from "../../types";
-import { listKnowledgeItems } from "../knowledgeBaseService";
+import { Evidence, ModelCapabilityProfile, ModelRecommendation, RecommendationResult, RequirementProfile } from "../../types";
 import { createEvidence } from "../evidence/evidenceStore";
+import { listKnowledgeItems } from "../knowledgeBaseService";
+import { modelRankingBreakdown, verifyConfiguredModel } from "../verification/modelVerifier";
 
-export function scoreExecutionModels(profile: RequirementProfile, evaluator: { provider: string; model: string }): { models: ModelRecommendation[]; evidence: Evidence[] } {
+function capabilityProfile(item: { modelCapabilities?: string[]; modalities?: string[]; access?: string; summary?: string; confidence?: string; contextWindow?: string }): ModelCapabilityProfile {
+  const caps = item.modelCapabilities || [];
+  const modalities = item.modalities || [];
+  const coding = caps.some((cap) => /code|coding|agent/i.test(cap)) ? 0.8 : undefined;
+  const vision = modalities.includes("vision") ? 0.8 : undefined;
+  const toolUse = caps.some((cap) => /tool|function|agent/i.test(cap)) ? 0.7 : undefined;
+  const reasoning = item.confidence === "高" ? 0.75 : undefined;
+  const longContext = item.contextWindow && /128|200|1m|million/i.test(item.contextWindow) ? 0.8 : undefined;
+  const localAvailable = /local|cli|self/i.test(`${item.access || ""} ${item.summary || ""}`) || undefined;
+  return {
+    coding,
+    reasoning,
+    vision,
+    toolUse,
+    longContext,
+    localAvailable: localAvailable ? true : undefined,
+  };
+}
+
+export function scoreExecutionModels(profile: RequirementProfile, evaluator: { provider: string; model: string }): RecommendationResult<ModelRecommendation> & { models: ModelRecommendation[] } {
   const items = listKnowledgeItems("llm");
   const needVision = /video|image|vision/.test(profile.tags.join(" "));
   const needCode = Boolean(profile.needsTerminal || profile.domain.includes("developer-tool") || profile.domain.includes("embedded") || (profile.requiredFeatures || []).includes("firmware"));
   const evidence: Evidence[] = [];
   const models = items
-    .map((item, index) => {
-      const modalities = item.modalities || [];
+    .map((item) => {
+      const profileCaps = capabilityProfile(item);
       let score = 40;
       const reasons: string[] = [];
-      if (needCode && ((item.modelCapabilities || []).some((cap) => /code|coding|agent/i.test(cap)) || /code|codex|claude|deepseek/i.test(item.name))) {
-        score += 20;
-        reasons.push("适合代码/工程任务");
+      if (needCode && profileCaps.coding != null) {
+        score += Math.round(profileCaps.coding * 25);
+        reasons.push("知识库标明适合代码/工程任务");
       }
-      if (needVision && modalities.includes("vision")) {
-        score += 15;
+      if (needVision && profileCaps.vision != null) {
+        score += Math.round(profileCaps.vision * 18);
         reasons.push("支持视觉输入");
       }
-      if (profile.dataSensitivity === "高" && /local|cli|self/i.test(`${item.access} ${item.summary}`)) {
+      if (profile.dataSensitivity === "高" && profileCaps.localAvailable) {
         score += 10;
         reasons.push("更适合受控/本地执行");
       }
       if (item.confidence === "高") score += 8;
+      const availability = verifyConfiguredModel(item.vendor, item.modelId || item.name);
+      const breakdown = modelRankingBreakdown({
+        coding: profileCaps.coding,
+        toolUse: profileCaps.toolUse,
+        vision: profileCaps.vision,
+        cost: /免费|free/i.test(item.pricing || "") ? 0.8 : undefined,
+        availability,
+      });
       const ev = createEvidence({
         type: "knowledge-base",
         title: item.name,
         url: item.sourceUrl || item.url,
         confidence: item.sourceUrl?.startsWith("http") ? "high" : "medium",
         note: item.summary,
+        claims: item.modelId ? [{ id: `${item.id}-model-id`, statement: `Model ID = ${item.modelId}`, field: "modelId", verificationStatus: "unverified" }] : undefined,
       });
       evidence.push(ev);
       const rec: ModelRecommendation = {
@@ -47,12 +76,13 @@ export function scoreExecutionModels(profile: RequirementProfile, evaluator: { p
         matchScore: Math.min(95, score),
         evidenceIds: [ev.id],
         roleKind: "execution",
+        capabilityProfile: { ...profileCaps, evidenceIds: [ev.id] },
+        rankingBreakdown: breakdown,
         ratings: {
-          reasoning: item.confidence === "高" ? 4 : 0,
-          coding: (item.modelCapabilities || []).some((cap) => /code|coding/i.test(cap)) ? 4 : 0,
-          vision: modalities.includes("vision") ? 4 : 0,
-          video: modalities.includes("video") ? 4 : 0,
-          speed: 0,
+          reasoning: profileCaps.reasoning != null ? Math.round(profileCaps.reasoning * 5) : undefined,
+          coding: profileCaps.coding != null ? Math.round(profileCaps.coding * 5) : undefined,
+          vision: profileCaps.vision != null ? Math.round(profileCaps.vision * 5) : undefined,
+          video: (item.modalities || []).includes("video") ? 4 : undefined,
         },
         reason: reasons.join("；") || "知识库候选，尚未被证明为最佳执行模型",
       };
@@ -81,8 +111,10 @@ export function scoreExecutionModels(profile: RequirementProfile, evaluator: { p
     matchScore: 0,
     evidenceIds: [evaluatorEvidence.id],
     roleKind: "evaluator",
-    ratings: { reasoning: 3, coding: 3, vision: 1, video: 1, speed: 3 },
+    rankingBreakdown: modelRankingBreakdown({ availability: verifyConfiguredModel(evaluator.provider, evaluator.model) }),
+    ratings: {},
     reason: "用户选择的评估模型。执行模型从知识库与需求独立打分。",
   };
-  return { models: [evaluatorModel, ...models.filter((item) => item.modelId !== evaluator.model)].slice(0, 7), evidence };
+  const ranked = [evaluatorModel, ...models.filter((item) => item.modelId !== evaluator.model)].slice(0, 7);
+  return { items: ranked, models: ranked, evidence };
 }

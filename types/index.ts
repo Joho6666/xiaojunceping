@@ -39,15 +39,54 @@ export type DomainName =
   | "education"
   | "productivity"
   | "developer-tool";
-export const EVALUATION_ENGINE_VERSION = "v2.2.0";
+export const EVALUATION_ENGINE_VERSION = "v2.4.0";
+export interface RetrievalScore {
+  lexical: number | null;
+  semantic: number | null;
+  metadata: number;
+  sourceQuality: number;
+  final: number;
+}
+export interface RetrievalDebug {
+  lexical: number | null;
+  semantic: number | null;
+  metadata: number;
+  source: number;
+  final: number;
+  matchedTerms: string[];
+}
+export interface RecommendationResult<T> {
+  items: T[];
+  evidence: Evidence[];
+}
+export interface EvidenceClaim {
+  id: string;
+  statement: string;
+  field: string;
+  verificationStatus: VerificationStatus;
+}
+export interface UnknownItem {
+  field: string;
+  reason: string;
+  severity: "blocking" | "important" | "optional";
+  requiredFor: "research" | "prototype" | "development" | "production";
+}
 export interface ExecutionTask {
   id: string;
   requirementIds: string[];
   componentId: string;
   title: string;
+  description?: string;
   agentId?: string;
+  modelId?: string;
   toolIds: string[];
+  dependsOn?: string[];
+  blockedBy?: string[];
+  priority?: "high" | "medium" | "low";
+  estimatedEffort?: string;
   acceptanceCriteria: string[];
+  acceptanceTests?: string[];
+  status?: "planned" | "ready" | "blocked" | "running" | "passed" | "failed";
 }
 export interface ExecutionComponent {
   id: string;
@@ -56,9 +95,14 @@ export interface ExecutionComponent {
 }
 export interface TraceabilityPlan {
   coverage: number;
+  componentCoverage?: number;
+  taskCoverage?: number;
+  acceptanceCoverage?: number;
+  executorCoverage?: number;
   missingRequirements: string[];
   components: ExecutionComponent[];
   tasks: ExecutionTask[];
+  cycle?: string[];
 }
 export type VerificationStatus = "verified" | "partially_verified" | "unverified" | "failed";
 export type SourceClass = "official" | "github" | "community" | "documentation" | "pricing" | "blog" | "registry" | "unknown";
@@ -86,6 +130,7 @@ export interface Evidence {
   verifiedFields?: string[];
   unverifiedFields?: string[];
   sourceClass?: SourceClass;
+  claims?: EvidenceClaim[];
 }
 export interface DomainScore {
   name: DomainName;
@@ -181,11 +226,34 @@ export interface ModelRecommendation {
   matchScore: number;
   evidenceIds?: string[];
   roleKind?: "evaluator" | "execution";
-  ratings: Record<
-    "reasoning" | "coding" | "vision" | "video" | "speed",
-    number
-  >;
+  ratings: Partial<Record<"reasoning" | "coding" | "vision" | "video" | "speed", number>>;
+  capabilityProfile?: ModelCapabilityProfile;
+  rankingBreakdown?: {
+    codingFit?: number;
+    toolFit?: number;
+    visionFit?: number;
+    costFit?: number;
+    availability: "available" | "unavailable" | "unknown";
+    evidenceConfidence: "high" | "medium" | "low" | "unknown";
+  };
   reason: string;
+}
+export interface ModelCapabilityProfile {
+  coding?: number;
+  reasoning?: number;
+  vision?: number;
+  toolUse?: number;
+  structuredOutput?: number;
+  agenticCoding?: number;
+  computerUse?: number;
+  longContext?: number;
+  speed?: number;
+  costEfficiency?: number;
+  cliAvailable?: boolean;
+  apiAvailable?: boolean;
+  localAvailable?: boolean;
+  verifiedAt?: string;
+  evidenceIds?: string[];
 }
 export interface GithubProjectRecommendation {
   id: string;
@@ -244,6 +312,7 @@ export interface ToolRecommendation {
   reason: string;
   required: boolean;
   alternatives: string[];
+  evidenceIds?: string[];
 }
 export interface EcosystemRecommendation {
   id: string;
@@ -347,6 +416,8 @@ export interface KnowledgeMatch {
   matchedBy: string[];
   ruleNotes: string[];
   evidence: "knowledge-base" | "live" | "inference";
+  retrievalScore?: RetrievalScore;
+  retrievalDebug?: RetrievalDebug;
 }
 export interface KnowledgeSnapshot {
   snapshotAt: string;
@@ -559,7 +630,76 @@ export interface ProjectReport {
   estimateMethod?: string;
   clarificationQuestions?: string[];
   executionPlan?: TraceabilityPlan;
-  planDiff?: { added: string[]; removed: string[] };
+  planDiff?: {
+    added: string[];
+    removed: string[];
+    requirementChanges?: string[];
+    featureChanges?: string[];
+    architectureChanges?: string[];
+    modelChanges?: string[];
+    agentChanges?: string[];
+    toolChanges?: string[];
+    githubChanges?: string[];
+    riskChanges?: string[];
+    estimateChanges?: string[];
+    taskChanges?: string[];
+    readinessChanges?: string[];
+    reason?: string;
+  };
+  unknownItems?: UnknownItem[];
+  validExecutionPlan?: boolean;
+  judgeStatus?: "accept" | "revise" | "blocked" | "needs_clarification";
+  architectureDetail?: {
+    components: string[];
+    interfaces: string[];
+    dataFlow: string[];
+    storage: string[];
+    deployment: string[];
+    securityBoundaries: string[];
+    assumptions: string[];
+    risks: string[];
+  };
+  criticIds?: string[];
+  judgeEvidenceIds?: string[];
+  executionTarget?: ExecutionTarget;
+  executionSession?: ExecutionSession;
+}
+export interface PlanSnapshot {
+  version: number;
+  profile: RequirementProfile;
+  architecture: string[];
+  architectureDetail?: ProjectReport["architectureDetail"];
+  githubProjects: GithubProjectRecommendation[];
+  models: ModelRecommendation[];
+  agents: AgentRecommendation[];
+  tools: ToolRecommendation[];
+  risks: RiskItem[];
+  estimates: ProjectReport["estimates"];
+  executionPlan?: TraceabilityPlan;
+  readiness?: ProjectReadiness;
+  evidence: Evidence[];
+}
+export interface ExecutionTarget {
+  type: "local-repo" | "new-project";
+  path?: string;
+  gitRepo?: string;
+  branch?: string;
+}
+export interface ExecutionSession {
+  id: string;
+  projectId: string;
+  planVersion: number;
+  target: ExecutionTarget;
+  executor: string;
+  currentTask?: string;
+  status: "planned" | "ready" | "running" | "passed" | "failed" | "blocked";
+  startedAt: string;
+  updatedAt: string;
+}
+export interface AgentExecutor {
+  id: string;
+  available(): Promise<boolean>;
+  execute(task: Pick<ExecutionTask, "id" | "title">, context: Record<string, unknown>): Promise<{ ok: boolean; output: string }>;
 }
 export interface QuickReportView {
   title: string;

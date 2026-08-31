@@ -112,7 +112,7 @@ export function buildAgentPlan(project: Project, profile: RequirementProfile, re
     ...(profile.needsTerminal ? ['终端'] : []),
   ];
   const agents = names.map((name, index) => ({
-    id: `custom-agent-${index + 1}`,
+    id: report.generationMode === "live" && report.agents?.[index]?.id ? report.agents[index].id : `custom-agent-${index + 1}`,
     name,
     role: index === 0 ? '把项目目标转为可验证约束' : index === names.length - 1 ? '独立审查风险与验收' : '完成当前领域的可交付阶段',
     modelId,
@@ -142,8 +142,19 @@ export function buildPromptArtifacts(project: Project, report: ProjectReport, pl
 
 export function applyAgentPlanToReport(report: ProjectReport, plan: AgentPlan): ProjectReport {
   const selectedModel = report.model || report.models[0]?.modelId || '按已选模型';
+  const idMap = new Map(plan.agents.map((agent, index) => [report.agents[index]?.id, agent.id] as const));
+  const remappedPlan = report.executionPlan
+    ? {
+      ...report.executionPlan,
+      tasks: report.executionPlan.tasks.map((task) => ({
+        ...task,
+        agentId: task.agentId ? (idMap.get(task.agentId) || task.agentId) : task.agentId,
+      })),
+    }
+    : report.executionPlan;
   return {
     ...report,
+    executionPlan: remappedPlan,
     agents: plan.agents.map((agent, index) => ({
       id: agent.id,
       name: agent.name,
@@ -153,6 +164,7 @@ export function applyAgentPlanToReport(report: ProjectReport, plan: AgentPlan): 
       capabilities: agent.tools,
       bestFor: agent.outputs,
       matchScore: report.agents[index]?.matchScore ?? 0,
+      evidenceIds: report.agents[index]?.evidenceIds,
       reason: report.generationMode === "live"
         ? (report.agents[index]?.reason || `按需求画像安排在第 ${index + 1} 阶段。`)
         : `Demo 阶段顺序：第 ${index + 1} 阶段，输入来自 ${agent.inputs.join('、')}。`,

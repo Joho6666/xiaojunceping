@@ -1,0 +1,16 @@
+{
+  "cases": 90,
+  "domainF1": 0.9097222222222222,
+  "domainPrecision": 0.8343949044585988,
+  "domainRecall": 1,
+  "featurePrecision": 1,
+  "featureRecall": 0.9880239520958084,
+  "toolP3": 0,
+  "toolP5": 0.5,
+  "agentRecall5": 1,
+  "mrr": 0.2,
+  "githubNdcg5": 1,
+  "forbiddenRate": 0,
+  "evidenceCoverage": 1,
+  "readinessAccuracy": 1
+}

@@ -1,4 +1,4 @@
-import { AgentRecommendation, RequirementProfile } from "../../types";
+import { AgentRecommendation, RecommendationResult, RequirementProfile } from "../../types";
 import { createEvidence } from "../evidence/evidenceStore";
 
 const FEATURE_ROLES: Array<{ feature: RegExp; name: string; role: string }> = [
@@ -18,7 +18,7 @@ const FEATURE_ROLES: Array<{ feature: RegExp; name: string; role: string }> = [
   { feature: /mobile|小程序/, name: "移动端 QA Agent", role: "移动端验收" },
 ];
 
-export function scoreAgents(profile: RequirementProfile, provider: string): { agents: AgentRecommendation[]; evidenceIds: string[] } {
+export function scoreAgents(profile: RequirementProfile, provider: string): RecommendationResult<AgentRecommendation> & { agents: AgentRecommendation[]; evidenceIds: string[] } {
   const haystack = [...(profile.requiredFeatures || []), ...profile.capabilities, ...profile.tags].join(" ");
   const evidence = createEvidence({
     type: "user-input",
@@ -39,5 +39,5 @@ export function scoreAgents(profile: RequirementProfile, provider: string): { ag
     reason: selected.length ? `因所需能力命中：${item.name.replace(" Agent", "")}` : "需求不足，只保留研究角色",
     evidenceIds: [evidence.id],
   }));
-  return { evidenceIds: [evidence.id], agents };
+  return { items: agents, agents, evidenceIds: [evidence.id], evidence: [evidence] };
 }

@@ -23,6 +23,15 @@ export interface LocalDiscoveryItem {
 
 const home = () => process.env.USERPROFILE || os.homedir();
 const exists = (target: string) => fs.existsSync(target);
+
+function confined(root: string, parts: string[]): string | null {
+  if (!root || parts.some((part) => !part || part.includes("..") || part.includes("\0"))) return null;
+  const resolvedRoot = path.resolve(root);
+  const target = path.resolve(resolvedRoot, ...parts);
+  const prefix = resolvedRoot.endsWith(path.sep) ? resolvedRoot : resolvedRoot + path.sep;
+  if (target !== resolvedRoot && !target.startsWith(prefix)) return null;
+  return target;
+}
 const safeName = (value: string) => value.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 80);
 function safeUrl(value: string | undefined) {
   if (!value) return undefined;
@@ -50,12 +59,12 @@ function frontmatter(file: string) {
 }
 
 function scanSkillDirectory(root: string, detectedBy: string): LocalDiscoveryItem[] {
-  if (!exists(root)) return [];
+  if (!root || !exists(root)) return [];
   const result: LocalDiscoveryItem[] = [];
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const skillFile = path.join(root, entry.name, "SKILL.md");
-    if (!exists(skillFile)) continue;
+    if (!entry.isDirectory() || entry.name.includes("..")) continue;
+    const skillFile = confined(root, [entry.name, "SKILL.md"]);
+    if (!skillFile || !exists(skillFile)) continue;
     const meta = frontmatter(skillFile);
     result.push({
       id: `local-skill-${safeName(detectedBy)}-${safeName(entry.name)}`,
@@ -74,7 +83,7 @@ function scanSkillDirectory(root: string, detectedBy: string): LocalDiscoveryIte
 }
 
 function parseMcpConfig(file: string, detectedBy: string): LocalDiscoveryItem[] {
-  if (!exists(file)) return [];
+  if (!file || file.includes("..") || !exists(file)) return [];
   try {
     const raw = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
     const servers = (raw.mcpServers || raw.servers || {}) as Record<string, unknown>;
@@ -110,16 +119,26 @@ async function detectCli(command: string): Promise<LocalDiscoveryItem | null> {
   }
 }
 
+function confinedUnderHome(target: string | undefined, userHome: string): string | null {
+  if (!target || target.includes("..") || target.includes("\0")) return null;
+  const resolved = path.resolve(target);
+  const homeResolved = path.resolve(userHome);
+  const prefix = homeResolved.endsWith(path.sep) ? homeResolved : homeResolved + path.sep;
+  if (resolved !== homeResolved && !resolved.startsWith(prefix)) return null;
+  return resolved;
+}
+
 export async function discoverLocalCapabilities(): Promise<{ scannedAt: string; items: LocalDiscoveryItem[]; notes: string[] }> {
   const userHome = home();
+  const appData = confinedUnderHome(process.env.APPDATA, userHome) || confined(userHome, ["AppData", "Roaming"]);
   const items = [
-    ...scanSkillDirectory(path.join(userHome, ".codex", "skills"), "Codex Skills"),
-    ...scanSkillDirectory(path.join(userHome, ".agents", "skills"), "Agents Skills"),
-    ...scanSkillDirectory(path.join(userHome, ".claude", "skills"), "Claude Skills"),
-    ...parseMcpConfig(path.join(userHome, ".cursor", "mcp.json"), "Cursor MCP"),
-    ...parseMcpConfig(path.join(userHome, ".claude.json"), "Claude MCP"),
-    ...parseMcpConfig(path.join(userHome, ".vscode", "mcp.json"), "VS Code MCP"),
-    ...parseMcpConfig(path.join(process.env.APPDATA || path.join(userHome, "AppData", "Roaming"), "Claude", "claude_desktop_config.json"), "Claude Desktop MCP"),
+    ...scanSkillDirectory(confined(userHome, [".codex", "skills"]) || "", "Codex Skills"),
+    ...scanSkillDirectory(confined(userHome, [".agents", "skills"]) || "", "Agents Skills"),
+    ...scanSkillDirectory(confined(userHome, [".claude", "skills"]) || "", "Claude Skills"),
+    ...parseMcpConfig(confined(userHome, [".cursor", "mcp.json"]) || "", "Cursor MCP"),
+    ...parseMcpConfig(confined(userHome, [".claude.json"]) || "", "Claude MCP"),
+    ...parseMcpConfig(confined(userHome, [".vscode", "mcp.json"]) || "", "VS Code MCP"),
+    ...parseMcpConfig((appData && confined(appData, ["Claude", "claude_desktop_config.json"])) || "", "Claude Desktop MCP"),
   ];
   for (const command of ["codex", "claude", "gemini", "trae", "zcode", "dsh"]) {
     const detected = await detectCli(command);

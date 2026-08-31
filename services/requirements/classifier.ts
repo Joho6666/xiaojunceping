@@ -1,7 +1,7 @@
 import { DomainName, DomainScore, ProjectKind } from "../../types";
 
 const DOMAIN_PATTERNS: Array<{ name: DomainName; weight: number; pattern: RegExp }> = [
-  { name: "commerce", weight: 1, pattern: /电商|商城|购物|支付|订单|sku|库存|零售|服装|卖衣服/gi },
+  { name: "commerce", weight: 1, pattern: /电商|商城|购物|支付|订单|sku|库存|零售|服装|卖衣服|stripe/gi },
   { name: "video", weight: 1, pattern: /视频|剪辑|tiktok|抖音|短视频|ffmpeg|字幕|渲染/gi },
   { name: "audio", weight: 0.85, pattern: /音频|语音|tts|whisper|转写|播客|voice/gi },
   { name: "pcb", weight: 1, pattern: /pcb|原理图|gerber|erc|drc|kicad|电路板|bom/gi },
@@ -11,7 +11,7 @@ const DOMAIN_PATTERNS: Array<{ name: DomainName; weight: number; pattern: RegExp
   { name: "ai-agent", weight: 0.95, pattern: /agent|智能体|mcp|skill|多代理|编排|codex|claude code/gi },
   { name: "automation", weight: 0.85, pattern: /自动化|工作流|n8n|webhook|workflow/gi },
   { name: "web", weight: 0.75, pattern: /网站|web|saas|后台|dashboard|next\.js|react|小程序后台/gi },
-  { name: "mobile", weight: 0.9, pattern: /app|ios|android|小程序|移动端|微信/gi },
+  { name: "mobile", weight: 0.9, pattern: /app|ios|android|小程序|移动端|微信|手机/gi },
   { name: "desktop", weight: 0.85, pattern: /桌面|windows|electron|wpf|电脑/gi },
   { name: "data", weight: 0.7, pattern: /数据|etl|分析|报表|warehouse/gi },
   { name: "education", weight: 0.75, pattern: /校园|教育|课程|学习|学生|交友/gi },

@@ -52,6 +52,15 @@ jobs:
           npm run test:traceability
           npm run test:benchmark
           npm run test:history
+          npm run test:evidence-integrity
+          npm run test:hybrid-scoring
+          npm run test:embedding-cache
+          npm run test:unknown-classification
+          npm run test:plan-version
+          npm run test:task-dag
+          npm run test:model-verification
+          npm run test:expert-pipeline
+          npm run test:benchmark-regression
 
       - name: Build
         run: npm run build --if-present

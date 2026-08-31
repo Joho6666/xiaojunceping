@@ -13,6 +13,11 @@ export function createEvidence(input: Omit<Evidence, "id"> & { id?: string }): E
     verifiedAt: input.verifiedAt,
     confidence: input.confidence,
     note: input.note,
+    claims: input.claims,
+    verificationStatus: input.verificationStatus,
+    verifiedFields: input.verifiedFields,
+    unverifiedFields: input.unverifiedFields,
+    sourceClass: input.sourceClass,
   };
 }
 
@@ -22,23 +27,37 @@ export function evidenceFromUrl(type: EvidenceType, title: string, url?: string,
     title,
     url,
     confidence: url?.startsWith("http") ? confidence : "low",
-    verifiedAt: url?.startsWith("http") ? new Date().toISOString() : undefined,
     note: note || (url?.startsWith("http") ? undefined : "缺少可核验 URL"),
   });
 }
 
 export function mergeEvidence(...lists: Array<Evidence[] | undefined>) {
-  const seen = new Set<string>();
-  const result: Evidence[] = [];
+  const byId = new Map<string, Evidence>();
+  const urlOwner = new Map<string, string>();
+  const idMap = new Map<string, string>();
   for (const list of lists) {
     for (const item of list || []) {
-      const key = item.url || item.id;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      result.push(item);
+      if (!item?.id) continue;
+      const url = item.url || "";
+      if (url && urlOwner.has(url)) {
+        const survivor = urlOwner.get(url)!;
+        idMap.set(item.id, survivor);
+        continue;
+      }
+      if (byId.has(item.id)) {
+        idMap.set(item.id, item.id);
+        continue;
+      }
+      byId.set(item.id, item);
+      idMap.set(item.id, item.id);
+      if (url) urlOwner.set(url, item.id);
     }
   }
-  return result;
+  return { evidence: Array.from(byId.values()), idMap };
+}
+
+export function rewriteEvidenceIds(ids: string[] | undefined, idMap: Map<string, string>) {
+  return Array.from(new Set((ids || []).map((id) => idMap.get(id) || id)));
 }
 
 export function idsOf(list: Evidence[] | undefined) {

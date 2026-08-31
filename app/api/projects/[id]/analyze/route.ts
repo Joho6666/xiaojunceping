@@ -36,6 +36,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   } catch (error) {
     const code = error && typeof error === 'object' && 'code' in error ? String((error as { code: string }).code) : 'ANALYSIS_FAILED';
     const message = error instanceof Error ? error.message : '真实 AI 评估失败，请稍后重试。';
-    return NextResponse.json({ error: code, message }, { status: code === 'INVALID_API_KEY' ? 401 : 502 });
+    return NextResponse.json({ error: code, message }, { status: code === 'AUTH_FAILED' ? 401 : 502 });
   }
 }

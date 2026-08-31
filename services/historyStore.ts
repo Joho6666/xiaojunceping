@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
-import { AnswerValue, Project, ProjectReport, TraceabilityPlan } from "../types";
+import { AnswerValue, PlanSnapshot, Project, ProjectReport } from "../types";
 
 let db: Database.Database | null = null;
 
@@ -39,6 +39,7 @@ function database() {
       created_at TEXT NOT NULL
     );
   `);
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS plan_snapshots_project_version ON plan_snapshots(project_id, version)");
   return db;
 }
 
@@ -63,31 +64,27 @@ export function saveEvaluationRun(project: Project, report: ProjectReport) {
     );
 }
 
-export function getPreviousPlan(projectId: string): TraceabilityPlan | null {
+export function getPreviousPlan(projectId: string): PlanSnapshot | null {
   try {
     const row = database()
       .prepare("SELECT plan_json FROM plan_snapshots WHERE project_id = ? ORDER BY version DESC LIMIT 1")
       .get(projectId) as { plan_json?: string } | undefined;
-    return row?.plan_json ? JSON.parse(row.plan_json) as TraceabilityPlan : null;
+    return row?.plan_json ? JSON.parse(row.plan_json) as PlanSnapshot : null;
   } catch {
     return null;
   }
 }
 
-export function savePlanSnapshot(projectId: string, version: number, plan: TraceabilityPlan) {
-  try {
-    database()
-      .prepare("INSERT INTO plan_snapshots (id, project_id, version, plan_json, created_at) VALUES (?, ?, ?, ?, ?)")
-      .run(crypto.randomUUID(), projectId, version, JSON.stringify(plan), new Date().toISOString());
-  } catch {
-    /* ignore duplicate snapshot errors */
-  }
+export function savePlanSnapshot(projectId: string, version: number, plan: PlanSnapshot) {
+  database()
+    .prepare("INSERT INTO plan_snapshots (id, project_id, version, plan_json, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(crypto.randomUUID(), projectId, version, JSON.stringify(plan), new Date().toISOString());
 }
 
 export function nextPlanVersion(projectId: string) {
   try {
-    const row = database().prepare("SELECT COUNT(*) as count FROM evaluation_runs WHERE project_id = ?").get(projectId) as { count: number };
-    return Number(row?.count || 0) + 1;
+    const row = database().prepare("SELECT MAX(version) as version FROM plan_snapshots WHERE project_id = ?").get(projectId) as { version?: number };
+    return Number(row?.version || 0) + 1;
   } catch {
     return 1;
   }
