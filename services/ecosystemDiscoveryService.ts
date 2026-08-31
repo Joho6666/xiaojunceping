@@ -194,7 +194,7 @@ export async function discoverEcosystem(
         0,
         10,
       ),
-      matchScore: Math.max(55, 90 - index * 6),
+      matchScore: 0,
       reason: `GitHub 公开搜索结果，需结合 README、License 和实际安装验证：${profile.label}。`,
       capabilities: [String(item.language || "代码")],
       access: "GitHub 公开仓库",
@@ -211,6 +211,6 @@ export async function discoverEcosystem(
       ...item,
       id: `ecosystem-${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`,
       updatedAt: item.updatedAt || new Date().toISOString(),
-      matchScore: item.matchScore ?? Math.max(60, 88 - index * 4),
+      matchScore: item.matchScore ?? 0,
     }));
 }

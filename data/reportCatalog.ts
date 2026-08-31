@@ -1054,6 +1054,7 @@ export function buildMockReport(project: Project): ProjectReport {
       },
     ],
     generatedAt: now,
+    generationMode: "demo",
   };
 }
 export const reportKinds = Object.keys(catalog) as ProjectKind[];

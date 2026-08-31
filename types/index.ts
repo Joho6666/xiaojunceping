@@ -10,7 +10,55 @@ export type QuestionType =
   "single-choice" | "multi-choice" | "text" | "textarea" | "ranking";
 export type AnswerValue = string | string[];
 export type ConfidenceLevel = "高" | "中" | "低";
-export type GenerationMode = "live" | "knowledge-only" | "mock";
+export type GenerationMode = "live" | "knowledge-only" | "mock" | "demo";
+export type ProviderCapabilityState = "available" | "partial" | "preview" | "unsupported";
+export type RetrievalMode = "lexical" | "hybrid";
+export type EvidenceType =
+  | "official"
+  | "github"
+  | "knowledge-base"
+  | "provider"
+  | "calculation"
+  | "llm-inference"
+  | "user-input"
+  | "benchmark";
+export type DomainName =
+  | "web"
+  | "mobile"
+  | "desktop"
+  | "embedded"
+  | "pcb"
+  | "cad"
+  | "industrial"
+  | "ai-agent"
+  | "automation"
+  | "data"
+  | "video"
+  | "audio"
+  | "commerce"
+  | "education"
+  | "productivity"
+  | "developer-tool";
+export const EVALUATION_ENGINE_VERSION = "v2.0.0";
+export interface Evidence {
+  id: string;
+  type: EvidenceType;
+  title: string;
+  url?: string;
+  retrievedAt?: string;
+  verifiedAt?: string;
+  confidence: "high" | "medium" | "low";
+  note?: string;
+}
+export interface DomainScore {
+  name: DomainName;
+  score: number;
+}
+export interface ConfidenceDimension {
+  score: number;
+  level: ConfidenceLevel;
+  reason: string;
+}
 export type CapabilityStatus = "推荐" | "有限制" | "不推荐";
 export type EcosystemCategory =
   "ai-tool" | "agent" | "llm" | "skill" | "mcp" | "plugin";
@@ -80,6 +128,7 @@ export interface AgentRecommendation {
   bestFor: string[];
   matchScore: number;
   reason: string;
+  evidenceIds?: string[];
 }
 export interface ModelRecommendation {
   id: string;
@@ -93,6 +142,8 @@ export interface ModelRecommendation {
   weaknesses: string[];
   pricingLevel: number;
   matchScore: number;
+  evidenceIds?: string[];
+  roleKind?: "evaluator" | "execution";
   ratings: Record<
     "reasoning" | "coding" | "vision" | "video" | "speed",
     number
@@ -121,6 +172,21 @@ export interface GithubProjectRecommendation {
   risks: string[];
   advice: string;
   source?: "live" | "snapshot";
+  evidenceIds?: string[];
+  scoreBreakdown?: {
+    domain: number;
+    feature: number;
+    stack: number;
+    maturity: number;
+    maintainability: number;
+    license: number;
+  };
+  licenseUse?: "核心二开" | "架构参考" | "功能参考" | "不建议商业复用" | "待确认";
+  archived?: boolean;
+  forks?: number;
+  openIssues?: number;
+  pushedAt?: string;
+  createdAt?: string;
 }
 export interface ReferenceProduct {
   name: string;
@@ -152,6 +218,7 @@ export interface EcosystemRecommendation {
   updatedAt: string;
   matchScore: number;
   reason: string;
+  evidenceIds?: string[];
   capabilities: string[];
   access: string;
   pricing?: string;
@@ -194,28 +261,44 @@ export interface RequirementProfile {
   projectName?: string;
   projectKind: ProjectKind;
   domain: string[];
+  domains?: DomainScore[];
   goals: string[];
   users?: string[];
   scenarios?: string[];
   requiredFeatures?: string[];
+  optionalFeatures?: string[];
   capabilities: string[];
   tags: string[];
   stack: string[];
+  preferredStack?: string[];
+  existingStack?: string[];
   platforms: string[];
+  targetPlatform?: string[];
+  deploymentTarget?: string[];
   constraints: string[];
   dataSensitivity: "低" | "中" | "高" | "未知";
   budget?: string;
   time?: string;
+  timeline?: string;
+  qualityTarget?: string;
+  automationTarget?: string;
+  userType?: string;
+  expectedScale?: string;
   needsLiveSearch: boolean;
   needsBrowser?: boolean;
   needsGithub?: boolean;
   needsFilesystem?: boolean;
   needsTerminal?: boolean;
   needsMcp?: boolean;
+  needsComputerUse?: boolean;
   selectedProvider?: string;
   selectedModel?: string;
   excludedOptions?: string[];
   acceptanceCriteria?: string[];
+  projectComplexity?: number;
+  numberOfFeatures?: number;
+  numberOfIntegrations?: number;
+  numberOfPlatforms?: number;
 }
 export interface KnowledgeMatch {
   item: KnowledgeItem;
@@ -259,6 +342,7 @@ export interface TechStackRecommendation {
   matchScore: number;
   reasons: string[];
   alternative: string;
+  evidenceIds?: string[];
 }
 export interface WorkflowPhase {
   id: string;
@@ -413,6 +497,17 @@ export interface ProjectReport {
   inferredSuggestions?: InferredSuggestion[];
   agentPlan?: AgentPlan;
   promptArtifacts?: PromptArtifact[];
+  evidence?: Evidence[];
+  unknownFields?: string[];
+  needsConfirmation?: string[];
+  nextActions?: string[];
+  decisionLog?: Array<{ decision: string; chosen: string; rejected?: string[]; reason: string; evidenceIds?: string[] }>;
+  evaluationEngineVersion?: string;
+  retrievalMode?: RetrievalMode;
+  evaluator?: { provider: string; model: string };
+  executionModels?: Array<{ role: string; provider: string; model: string }>;
+  confidenceDetails?: Record<string, ConfidenceDimension>;
+  criticNotes?: string[];
 }
 export interface QuickReportView {
   title: string;
@@ -462,6 +557,7 @@ export interface ProviderConnection {
   baseUrl?: string;
   model?: string;
   errorCode?: string;
+  evaluationCapability?: ProviderCapabilityState;
 }
 export interface CapabilityConnection {
   id: CapabilityId;

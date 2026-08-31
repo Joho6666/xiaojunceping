@@ -111,7 +111,7 @@ export default function ReportPage() {
     );
   const r = app.report;
   const reportArraysValid = Array.isArray(r.scores) && Array.isArray(r.agents) && Array.isArray(r.models) && Array.isArray(r.githubProjects) && Array.isArray(r.referenceProducts) && Array.isArray(r.tools) && Array.isArray(r.ecosystem) && Array.isArray(r.interfaces) && Array.isArray(r.techStack) && Array.isArray(r.workflows) && Array.isArray(r.alternatives) && Array.isArray(r.architecture) && Array.isArray(r.risks) && Array.isArray(r.sources);
-  if (!reportArraysValid || !r.estimates?.tokens || !r.estimates?.time || !r.estimates?.cost || !r.estimates?.automation || !r.projectSummary || !r.strategy || !r.confidence || !r.generationMode || r.generationMode === "mock") {
+  if (!reportArraysValid || !r.estimates?.tokens || !r.estimates?.time || !r.estimates?.cost || !r.estimates?.automation || !r.projectSummary || !r.strategy || !r.confidence || !r.generationMode || r.generationMode === "mock" || r.generationMode === "demo") {
     return (
       <div className="content empty-state">
         <h1>这份报告需要重新生成</h1>

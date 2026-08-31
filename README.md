@@ -1,8 +1,8 @@
 # AgentScope（小君AI测评）
 
-AgentScope 是一个面向真实项目的 AI 方案评估与执行规划平台：输入项目描述，选择 Quick / Expert 模式和已连接的 Provider / 模型，系统会生成项目画像，检索本地 AI 生态知识库，补充 GitHub 与官方来源，过滤不适配项，并输出可执行的 Agent 工作流、成本估算和项目专属 Prompt。
+AgentScope 当前是 **Evidence-grounded AI Engineering Planner**：输入真实项目后，系统会抽取多领域需求画像，检索知识库与 GitHub，用可解释评分推荐模型 / Agent / 工具 / 开源项目，并标出证据、未知项和下一步施工动作。
 
-它解决的是“这个项目应该用什么模型、Agent、Skill、MCP 和开源项目”的落地问题，而不是只生成一段泛泛的 AI 建议。报告会把已核验来源、知识库快照、实时搜索结果、推测建议和人工确认节点分开显示。
+它不是“AI 自动给你生成一堆推荐”。Live 报告禁止混入 Demo/Mock 模板；评分数值必须能追溯到需求重叠、仓库元数据或价格来源。证据不足时输出 `unknown` / `needs_confirmation`，而不是填一个看起来很准的数字。
 
 ![AgentScope 从项目想法到可执行方案](assets/agentscope-homepage-illustrations/01-project-idea-to-executable-plan.png)
 
@@ -102,6 +102,40 @@ Prompt Generator 支持 Codex、Claude Code、Cursor 和 OpenCode 模板，并�
 
 报告不是固定模板：不同项目会得到不同的策略、参考项目、工具链、Agent 队列、模型路由、风险、时间 / 实施 Token 预测和执行 Prompt。
 
+## How recommendations are calculated
+
+GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
+
+`domain * 0.28 + featureOverlap * 0.24 + stackFit * 0.18 + maturity * 0.12 + maintainability * 0.12 + licenseFit * 0.06`
+
+知识库检索默认是 BM25 + 元数据过滤（`retrievalMode = lexical`）。只有配置了 Embedding Provider 才会变成 hybrid；没有向量模型时不会假装做语义搜索。
+
+评估模型（evaluator）和执行模型（executionModels）分开。用户选 Codex 来生成报告，不会自动把它写成“本项目最适合的开发模型”。
+
+## Evidence model
+
+每条关键推荐尽量带 `evidenceIds`。Evidence 类型包括 official / github / knowledge-base / provider / calculation / llm-inference / user-input / benchmark。网页、README、MCP 元数据一律视为 UNTRUSTED DATA，只作为引用，不能改写系统指令。
+
+## Quick vs Expert
+
+- **Quick**：需求抽取 → 本地检索 → GitHub Top 5 → 单次评估上下文 → 报告。目标是低成本。
+- **Expert**：在 Quick 之上增加浏览器研究、独立 Critic 和 ReportVerifier。Critic 可以对架构/许可证/敏感数据提出反对意见。
+
+## Confidence
+
+置信度是分维度的：requirement / github / tools / models / cost / time / architecture，每一维都有 `score` 和 `reason`。例如成本置信度低，是因为缺少规模和调用频率，而不是因为“模型比较谦虚”。
+
+## Known limitations
+
+- Anthropic / Gemini 连接可保存，但评估适配器仍是 `partial`，首页不会拿它们当可评估 Provider。
+- 没有 Embedding Provider 时检索不是语义搜索。
+- Hosting / Database / SaaS 成本经常是 `unknown`，除非知识库有可核验单价。
+- 本机仍是单用户优先；历史已写入 SQLite（`projects.sqlite` / `reports.sqlite`），浏览器 localStorage 只作缓存。
+
+## Evaluation benchmark
+
+`tests/evaluation-cases/` 目前有 20 个黄金案例，覆盖 STM32、TikTok 剪辑、校园交友、波峰焊治具、电商、工业 Agent 等。CI 会跑 `test:golden` 和 `LIVE_REPORT_MUST_NOT_USE_MOCK`。
+
 ## 能力概览
 
 - Quick / Expert 双模式评估
@@ -157,8 +191,12 @@ npm run test:knowledge-coverage
 npm run test:local-discovery
 npm run test:customization
 npm run test:prompt
-npm run test:discovery
-npm run build
+	npm run test:discovery
+	npm run test:cli
+	npm run test:report-store
+	npm run test:golden
+	npm run test:live-integrity
+	npm run build
 ```
 
 ## 项目结构
@@ -167,7 +205,8 @@ npm run build
 app/                    Next.js App Router 页面和 API
 components/             访谈、分析、报告和 Prompt UI
 data/                   可公开发布的知识库种子与项目数据
-services/               Provider、知识库、检索、分析和 Prompt 服务层
+services/               Provider、知识库、检索、推荐、评估流水线和 Prompt 服务层
+tests/evaluation-cases/ 黄金评测案例
 ai/                     CLI Adapter 与 Provider Router
 scripts/                同步、校验和测试脚本
 docs/                   知识库与部署说明

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveAnyEvaluationProvider } from '../../../../../services/providerService';
 import { analyzeWithCodex, analyzeWithDeepSeek } from '../../../../../services/realAnalysisService';
 import { saveStoredReport } from '../../../../../services/reportStore';
+import { canEvaluate, capabilityMessage } from '../../../../../services/provider/capability';
 import { Project, AnswerValue, ProjectKind } from '../../../../../types';
 
 const PROJECT_KINDS: ProjectKind[] = ['video', 'web', 'cad', 'pcb', 'automation', 'general'];
@@ -21,10 +22,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
     const preferred = await resolveAnyEvaluationProvider(body.project.selectedConnectionId);
     if (preferred.status !== 'connected') return NextResponse.json({ error: 'PROVIDER_REQUIRED', message: '请先连接可用的 AI Provider（Codex CLI 或 API Key）。' }, { status: 503 });
-    if (preferred.provider === 'anthropic' || preferred.provider === 'gemini') {
+    if (!canEvaluate(preferred.provider)) {
       return NextResponse.json({
         error: 'PROVIDER_ADAPTER_NOT_IMPLEMENTED',
-        message: `${preferred.provider === 'anthropic' ? 'Anthropic' : 'Gemini'} 已保存连接，但当前分析引擎尚未启用该 Provider 适配器。请暂时使用 Codex CLI、DeepSeek 或 OpenAI-compatible API。`,
+        message: capabilityMessage(preferred.provider),
       }, { status: 501 });
     }
     const report = preferred.provider === 'openai' && preferred.connection.mode === 'cli'

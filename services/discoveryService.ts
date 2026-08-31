@@ -46,7 +46,7 @@ function snapshotGithub(profile: RequirementProfile): GithubProjectRecommendatio
       if (item.tags.some((tag) => tag.toLowerCase() === profile.projectKind)) matched.push(profile.projectKind);
       return {
         item,
-        score: Math.min(96, 58 + matched.length * 7 + (item.confidence === "高" ? 12 : 4) - index),
+        score: Math.min(96, 50 + matched.length * 10 + (item.confidence === "高" ? 8 : 0)),
       };
     })
     .filter((x) => x.score >= 60)
@@ -62,10 +62,10 @@ function snapshotGithub(profile: RequirementProfile): GithubProjectRecommendatio
       language: item.stack[0] || "未知",
       license: item.license || "未声明",
       updatedAt: item.updatedAt,
-      activity: 60,
-      maturity: item.confidence === "高" ? 85 : 70,
+      activity: 0,
+      maturity: item.confidence === "高" ? 70 : 40,
       similarity: score,
-      recommendation: Math.max(1, 5 - Math.floor(index / 2)),
+      recommendation: score >= 75 ? 4 : score >= 60 ? 3 : 2,
       stack: item.stack,
       capabilities: item.capabilities,
       recommendedUse: `先阅读 ${item.name} 的 README、许可证和核心目录，再决定复用范围。`,

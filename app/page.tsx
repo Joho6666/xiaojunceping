@@ -54,7 +54,7 @@ export default function Home() {
     fetch("/api/connections")
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
-        const available = (data?.connections || []).filter((item: ProviderConnection) => item.status === "connected");
+        const available = (data?.connections || []).filter((item: ProviderConnection) => item.status === "connected" && item.evaluationCapability !== "partial" && item.evaluationCapability !== "unsupported");
         setConnections(available);
         if (!selectedConnectionId && available[0]) setSelectedConnectionId(available[0].id);
       })

@@ -167,7 +167,14 @@ function restore() {
 }
 restore();
 export function listConnections() {
-  return Array.from(connections.values());
+  return Array.from(connections.values()).map((connection) => ({
+    ...connection,
+    evaluationCapability: connection.provider === "openai" || connection.provider === "deepseek" || connection.provider === "custom"
+      ? "available" as const
+      : connection.provider === "anthropic" || connection.provider === "gemini"
+        ? "partial" as const
+        : "unsupported" as const,
+  }));
 }
 export async function checkProviderCLI(provider: ProviderId, model?: string) {
   const status = provider === "openai" ? await codexCliAdapter.healthCheck() : await checkCLI(provider);

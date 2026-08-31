@@ -1,4 +1,4 @@
-import { AnswerValue, AgentPlan, AgentRecommendation, Project, ProjectReport, PromptArtifact, RequirementProfile } from '../types';
+import { AnswerValue, AgentPlan, Project, ProjectReport, PromptArtifact, RequirementProfile } from '../types';
 import { modelKnowledgeCatalog } from '../data/knowledgeCatalog';
 
 function hash(input: string) {
@@ -102,7 +102,9 @@ const domainAgents: Record<Project['kind'], string[]> = {
 };
 
 export function buildAgentPlan(project: Project, profile: RequirementProfile, report: ProjectReport, modelId: string): AgentPlan {
-  const names = domainAgents[project.kind] || domainAgents.general;
+  const names = report.generationMode === "live" && report.agents?.length
+    ? report.agents.map((agent) => agent.name)
+    : (domainAgents[project.kind] || domainAgents.general);
   const tools = [
     ...(profile.needsGithub ? ['GitHub'] : []),
     ...(profile.needsLiveSearch ? ['浏览器搜索'] : []),
@@ -150,8 +152,10 @@ export function applyAgentPlanToReport(report: ProjectReport, plan: AgentPlan): 
       role: agent.role,
       capabilities: agent.tools,
       bestFor: agent.outputs,
-      matchScore: Math.max(70, 92 - index * 4),
-      reason: `按项目画像安排在第 ${index + 1} 阶段，输入来自 ${agent.inputs.join('、')}。`,
+      matchScore: report.agents[index]?.matchScore ?? 0,
+      reason: report.generationMode === "live"
+        ? (report.agents[index]?.reason || `按需求画像安排在第 ${index + 1} 阶段。`)
+        : `Demo 阶段顺序：第 ${index + 1} 阶段，输入来自 ${agent.inputs.join('、')}。`,
     })),
     workflows: plan.agents.map((agent, index) => ({
       id: `custom-phase-${index + 1}`,
@@ -163,8 +167,8 @@ export function applyAgentPlanToReport(report: ProjectReport, plan: AgentPlan): 
       input: agent.inputs.join('、'),
       actions: agent.actions,
       output: agent.outputs.join('、'),
-      time: index === 0 ? '0.5–1 天' : index === plan.agents.length - 1 ? '0.5–1 天' : '1–2 天',
-      tokens: index === 0 ? '约 5k–15k' : '约 10k–30k',
+      time: report.generationMode === "live" ? (report.estimates.time.display || "unknown") : (index === 0 ? '0.5–1 天' : '1–2 天'),
+      tokens: report.generationMode === "live" ? (report.estimates.tokens.display || "unknown") : (index === 0 ? '约 5k–15k' : '约 10k–30k'),
       acceptance: agent.acceptance.join('；'),
       risk: '若输入或来源不足，暂停并请求人工确认',
     })),
@@ -172,6 +176,9 @@ export function applyAgentPlanToReport(report: ProjectReport, plan: AgentPlan): 
 }
 
 export function customizeProjectSections(project: Project, profile: RequirementProfile, report: ProjectReport): ProjectReport {
+  if (report.generationMode === "live" || report.generationMode === "knowledge-only") {
+    return report;
+  }
   const domainLabel: Record<Project['kind'], string> = { video: '视频内容生产', web: 'Web 产品', cad: 'CAD 建模制造', pcb: 'PCB 硬件设计', automation: '自动化工作流', general: '定制软件项目' };
   const stackByKind: Record<Project['kind'], string[]> = {
     video: ['FFmpeg', '字幕/转写管线', '对象存储', '任务队列'], web: ['Next.js', '数据库与鉴权', '商品/业务 API', 'Vercel 或同类部署'], cad: ['FreeCAD/STEP', '参数化建模脚本', '几何校验', '制造文件导出'], pcb: ['KiCad', 'BOM 管理', 'Gerber 导出', 'ERC/DRC 校验'], automation: ['n8n 或等价编排器', 'Webhook/API', 'MCP 工具', '重试与审计'], general: ['TypeScript', '模块化 API', '持久化存储', '自动化测试']
