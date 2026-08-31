@@ -65,10 +65,10 @@ export default function Confirm() {
             {[
               ["项目类型", preview.typeLabel],
               ["目标用户", value("audience", "待确认")],
-              ["完成标准", value("stage", "商业 MVP")],
-              ["开发周期", value("timeline", "无严格期限")],
-              ["优先级", value("priority", "效果 → 速度 → 成本")],
-              ["人工参与", value("participation", "关键节点确认")],
+              ["完成标准", value("stage", "待确认")],
+              ["开发周期", value("timeline", "待确认")],
+              ["优先级", value("priority", "待确认")],
+              ["人工参与", value("participation", "待确认")],
             ].map(([label, val]) => (
               <div className="card param" key={label}>
                 <label>{label}</label>

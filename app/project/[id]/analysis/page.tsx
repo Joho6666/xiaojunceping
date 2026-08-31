@@ -9,32 +9,12 @@ import {
 import { AnalysisJob } from "../../../../types";
 
 const discoveries = {
-  video: [
-    "找到 3 个视频开源项目",
-    "发现 2 个成熟剪辑 SaaS",
-    "正在比较多模态视频模型",
-  ],
-  cad: [
-    "找到 3 个参数化 CAD 项目",
-    "确认 STEP / STL 交付路线",
-    "识别制造校核人工节点",
-  ],
-  pcb: [
-    "找到 KiCad 与 SKiDL 方案",
-    "识别 BOM / Gerber 输出",
-    "确认 ERC / DRC 验收节点",
-  ],
-  web: [
-    "找到 3 个 SaaS Starter",
-    "发现成熟 Auth 与支付方案",
-    "正在比较 8 个 Coding Agent",
-  ],
-  automation: [
-    "找到 n8n 与 Activepieces",
-    "发现 2 个成熟自动化 SaaS",
-    "正在评估 5 套集成路线",
-  ],
-  general: ["正在搜索相似开源项目", "正在比较实现路线", "正在确认关键约束"],
+  video: ["正在按视频/字幕需求检索知识库", "正在核验可打开的参考来源", "尚未完成前不填写仓库数量"],
+  cad: ["正在按 CAD/制造约束检索", "正在核验几何与出图相关条目", "尚未完成前不填写项目数量"],
+  pcb: ["正在按原理图/Gerber 检索", "正在核验硬件工具条目", "尚未完成前不填写方案数量"],
+  web: ["正在按 Web/账号需求检索知识库", "正在核验可打开的参考来源", "尚未完成前不填写 Starter 数量"],
+  automation: ["正在按工作流/Webhook 检索", "正在核验自动化工具条目", "尚未完成前不填写集成数量"],
+  general: ["正在检索本地知识库", "正在核验来源链接", "数量以最终报告为准"],
 };
 const quickStatuses: AnalysisJob["status"][] = [
   "queued",

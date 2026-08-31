@@ -2,10 +2,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useApp } from "../../../../components/AppProvider";
-import { getQuestions } from "../../../../data/questions";
+import { getQuestionsForIdea } from "../../../../data/questions";
 import {
   calculateCompleteness,
-  getNextQuestion,
+  quickQuestions as selectQuickQuestions,
 } from "../../../../services/interviewService";
 import { AnswerValue, InterviewQuestion } from "../../../../types";
 export default function Interview() {
@@ -14,28 +14,14 @@ export default function Interview() {
     params = useParams();
   const mode = app.project?.evaluationMode || "expert";
   const allQuestions = useMemo(
-    () => getQuestions(app.project?.kind || "general"),
-    [app.project?.kind],
+    () => getQuestionsForIdea(app.project?.idea || "", app.project?.kind),
+    [app.project?.idea, app.project?.kind],
   );
-  const quickQuestions = useMemo(
-    () =>
-      app.project
-        ? allQuestions
-            .filter((q) =>
-              [
-                "stage",
-                "deliverables",
-                "priority",
-                "goal",
-                "resources",
-                "acceptance",
-              ].includes(q.id),
-            )
-            .slice(0, 3)
-        : [],
-    [allQuestions, app.project],
+  const quickQuestionList = useMemo(
+    () => (app.project ? selectQuickQuestions(app.project) : []),
+    [app.project],
   );
-  const questions = mode === "quick" ? quickQuestions : allQuestions;
+  const questions = mode === "quick" ? quickQuestionList : allQuestions;
   const index = Math.min(
     app.currentQuestion,
     Math.max(questions.length - 1, 0),
@@ -173,9 +159,7 @@ export default function Interview() {
           <div className="quick-understood">
             <span>AI 已经理解</span>
             <strong>
-              {app.project.kind === "video"
-                ? "AI 视频 Agent · 项目执行方案"
-                : `${app.project.kind.toUpperCase()} 项目 · 正在判断最佳实现方式`}
+              {app.project.idea.slice(0, 36) || "当前项目"} · 正在根据你的回答补齐约束
             </strong>
           </div>
           <div className="answer-actions">
@@ -352,7 +336,7 @@ function Understanding({
   completeness,
 }: {
   answers: Record<string, AnswerValue>;
-  questions: ReturnType<typeof getQuestions>;
+  questions: InterviewQuestion[];
   completeness: number;
 }) {
   return (

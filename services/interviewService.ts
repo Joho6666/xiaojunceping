@@ -1,1 +1,44 @@
-import {AnswerValue,EvaluationMode,InterviewQuestion,Project} from '../types';import {getQuestions} from '../data/questions';export const QUICK_BUDGET=3;export const EXPERT_BUDGET=15;export function calculateCompleteness(answers:Record<string,AnswerValue>,questions:InterviewQuestion[]){const required=questions.filter(q=>q.required!==false);const done=required.filter(q=>{const v=answers[q.id];return Array.isArray(v)?v.length>0:Boolean(v)}).length;return required.length?Math.round(done/required.length*100):100}function answered(v:AnswerValue|undefined){return Array.isArray(v)?v.length>0:Boolean(v&&String(v).trim())}function quickQuestions(project:Project){const common:Record<string,string[]>={video:['stage','deliverables','priority'],web:['stage','deliverables','priority'],cad:['stage','deliverables','resources'],pcb:['deliverables','resources','acceptance'],automation:['goal','resources','priority'],general:['goal','stage','priority']};return (common[project.kind]||common.general).map(id=>(getQuestions(project.kind)||[]).find(q=>q.id===id)).filter((q):q is InterviewQuestion=>Boolean(q))}export async function getNextQuestion(project:Project,answers:Record<string,AnswerValue>,mode:EvaluationMode):Promise<InterviewQuestion|null>{const questions=mode==='quick'?quickQuestions(project):getQuestions(project.kind);const budget=mode==='quick'?QUICK_BUDGET:EXPERT_BUDGET;const asked=questions.filter(q=>answered(answers[q.id])).length;if(asked>=budget)return null;return questions.find(q=>!answered(answers[q.id]))||null}
+import { AnswerValue, EvaluationMode, InterviewQuestion, Project } from "../types";
+import { getQuestions, getQuestionsForIdea } from "../data/questions";
+
+export const QUICK_BUDGET = 3;
+export const EXPERT_BUDGET = 15;
+
+export function calculateCompleteness(answers: Record<string, AnswerValue>, questions: InterviewQuestion[]) {
+  const required = questions.filter((q) => q.required !== false);
+  const done = required.filter((q) => {
+    const v = answers[q.id];
+    return Array.isArray(v) ? v.length > 0 : Boolean(v);
+  }).length;
+  return required.length ? Math.round((done / required.length) * 100) : 100;
+}
+
+function answered(v: AnswerValue | undefined) {
+  return Array.isArray(v) ? v.length > 0 : Boolean(v && String(v).trim());
+}
+
+export function quickQuestions(project: Project) {
+  const idsByKind: Record<string, string[]> = {
+    video: ["stage", "deliverables", "priority"],
+    web: ["stage", "deliverables", "priority"],
+    cad: ["stage", "deliverables", "resources"],
+    pcb: ["deliverables", "resources", "acceptance"],
+    automation: ["goal", "resources", "priority"],
+    general: ["goal", "stage", "priority"],
+  };
+  const questions = getQuestionsForIdea(project.idea, project.kind);
+  const preferred = (idsByKind[project.kind] || idsByKind.general)
+    .map((id) => questions.find((q) => q.id === id))
+    .filter((q): q is InterviewQuestion => Boolean(q));
+  const embedded = questions.filter((q) => q.id.startsWith("embedded-"));
+  return [...preferred, ...embedded].slice(0, QUICK_BUDGET);
+}
+
+export async function getNextQuestion(project: Project, answers: Record<string, AnswerValue>, mode: EvaluationMode): Promise<InterviewQuestion | null> {
+  const questions = mode === "quick" ? quickQuestions(project) : getQuestionsForIdea(project.idea, project.kind).slice(0, EXPERT_BUDGET);
+  const asked = questions.filter((q) => answered(answers[q.id])).length;
+  if (asked >= (mode === "quick" ? QUICK_BUDGET : EXPERT_BUDGET)) return null;
+  return questions.find((q) => !answered(answers[q.id])) || null;
+}
+
+export { getQuestions, getQuestionsForIdea };
