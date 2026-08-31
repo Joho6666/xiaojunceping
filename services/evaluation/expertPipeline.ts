@@ -8,7 +8,7 @@ import { searchBrowserSources } from "../browserSearchService";
 import { verifyGithubUrls } from "../githubService";
 import { buildLiveReport } from "../report/builder";
 import { verifyReport } from "./verifier";
-import { critiqueReport } from "./critic";
+import { critiqueReport, structuredCritique } from "./critic";
 import { evaluateRequirementGate } from "./requirementGate";
 import { evidenceFromUrl } from "../evidence/evidenceStore";
 import { classifySourceUrl } from "../verification/sourceVerifier";
@@ -71,10 +71,12 @@ export async function runExpertPipeline(
     evidence,
     llmSummary,
   });
+  const critique = structuredCritique(profile, draft);
   draft.criticNotes = critiqueReport(profile, draft);
-  if (draft.criticNotes.some((note) => /不建议|冲突|敏感/.test(note))) {
-    draft.blockingIssues = [...(draft.blockingIssues || []), ...draft.criticNotes.filter((note) => /不建议|冲突|敏感/.test(note))];
+  draft.blockingIssues = Array.from(new Set([...(draft.blockingIssues || []), ...critique.blockingIssues]));
+  if (critique.blockingIssues.length) {
     draft.projectSummary.status = "needs_confirmation";
+    draft.readiness = "blocked";
   }
   draft.knowledge = {
     ...draft.knowledge!,

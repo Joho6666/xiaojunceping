@@ -76,8 +76,7 @@ export default function Home() {
             到一套真正可执行的 AI 方案
           </h1>
           <p>
-            描述你想做的项目，选择评估深度，AI 会为你匹配
-            Agent、模型、工具和工作流，并预测时间、Token、成本与风险。
+            先连接 Codex CLI 或 DeepSeek。系统会抽取需求合同、核验来源，再告诉你能不能做、方案好不好、证据够不够。证据不足就标 unknown，不会用示例报告顶上。
           </p>
           <div className="card idea-card">
             <label className="field-label">
@@ -151,15 +150,18 @@ export default function Home() {
             </div>
             <button
               className="btn primary"
-              disabled={!idea.trim()}
+              disabled={!idea.trim() || !connections.length}
               onClick={start}
             >
-              {idea.trim()
+              {!connections.length
+                ? "请先绑定可评估模型"
+                : idea.trim()
                 ? mode === "quick"
                   ? "开始快速评估"
                   : "开始专家评估"
                 : "请先描述你的项目"}
             </button>
+            {!connections.length && <p className="muted">Claude / Gemini 目前只能保存连接，不能做真实评估。</p>}
           </div>
         </section>
         <section className="flow-strip">

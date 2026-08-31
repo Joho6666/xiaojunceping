@@ -24,6 +24,7 @@ import {
   Interfaces,
   Stack,
   Workflow,
+  ExecutionTasks,
   Architecture,
   Estimates,
   Automation,
@@ -288,6 +289,7 @@ export default function ReportPage() {
               <Interfaces r={reportWithContext} />
               <Stack r={reportWithContext} />
               <Workflow r={reportWithContext} />
+              <ExecutionTasks r={reportWithContext} />
               <Architecture r={reportWithContext} />
               <Estimates r={reportWithContext} />
               <Automation r={reportWithContext} />
@@ -300,8 +302,8 @@ export default function ReportPage() {
               <Sources r={reportWithContext} />
               <div className="report-cta">
                 <div>
-                  <h2>项目方案已经准备好了</h2>
-                  <p>生成可直接交给 Coding Agent 的执行上下文。</p>
+                  <h2>{reportWithContext.readiness === "development_ready" ? "可以开始写代码" : "还不能当作开工许可"}</h2>
+                  <p>{reportWithContext.readiness === "development_ready" ? "生成可直接交给 Coding Agent 的执行上下文。" : "先处理未知项和施工任务覆盖，再进入开发。"}</p>
                 </div>
                 <button className="btn primary" onClick={() => setPrompt(true)}>
                   生成项目执行 Prompt

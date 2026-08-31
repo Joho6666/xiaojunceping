@@ -21,6 +21,7 @@ export const sections = [
   ["interfaces", "接口能力"],
   ["stack", "技术栈"],
   ["workflow", "工作流"],
+  ["tasks", "施工任务"],
   ["architecture", "执行架构"],
   ["estimates", "时间与 Token"],
   ["automation", "自动化"],
@@ -575,6 +576,22 @@ export function Workflow({ r }: { r: ProjectReport }) {
           )}
         </div>
       ))}
+    </ReportSection>
+  );
+}
+export function ExecutionTasks({ r }: { r: ProjectReport }) {
+  const plan = r.executionPlan;
+  if (!plan?.tasks?.length) return null;
+  return (
+    <ReportSection id="tasks" title="施工任务" lead>
+      <p className="muted">覆盖率 {Math.round(plan.coverage * 100)}% · 每个 Required Feature 都应有任务和验收。未覆盖则不能 Development Ready。</p>
+      {plan.tasks.map((task) => (
+        <div className="understood-row" key={task.id}>
+          <span>{task.id} · {task.title}</span>
+          <b>{task.requirementIds.join(", ")}</b>
+        </div>
+      ))}
+      {plan.missingRequirements.length ? <div className="missing">{plan.missingRequirements.map((item) => <span key={item}>{item}</span>)}</div> : null}
     </ReportSection>
   );
 }

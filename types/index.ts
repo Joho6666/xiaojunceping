@@ -39,7 +39,27 @@ export type DomainName =
   | "education"
   | "productivity"
   | "developer-tool";
-export const EVALUATION_ENGINE_VERSION = "v2.1.0";
+export const EVALUATION_ENGINE_VERSION = "v2.2.0";
+export interface ExecutionTask {
+  id: string;
+  requirementIds: string[];
+  componentId: string;
+  title: string;
+  agentId?: string;
+  toolIds: string[];
+  acceptanceCriteria: string[];
+}
+export interface ExecutionComponent {
+  id: string;
+  name: string;
+  requirementIds: string[];
+}
+export interface TraceabilityPlan {
+  coverage: number;
+  missingRequirements: string[];
+  components: ExecutionComponent[];
+  tasks: ExecutionTask[];
+}
 export type VerificationStatus = "verified" | "partially_verified" | "unverified" | "failed";
 export type SourceClass = "official" | "github" | "community" | "documentation" | "pricing" | "blog" | "registry" | "unknown";
 export type ProjectReadiness = "not_ready" | "research_ready" | "prototype_ready" | "development_ready" | "production_ready" | "needs_clarification" | "blocked";
@@ -538,6 +558,7 @@ export interface ProjectReport {
   planVersion?: number;
   estimateMethod?: string;
   clarificationQuestions?: string[];
+  executionPlan?: TraceabilityPlan;
 }
 export interface QuickReportView {
   title: string;

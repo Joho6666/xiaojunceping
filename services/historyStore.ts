@@ -56,6 +56,15 @@ export function saveEvaluationRun(project: Project, report: ProjectReport) {
     );
 }
 
+export function nextPlanVersion(projectId: string) {
+  try {
+    const row = database().prepare("SELECT COUNT(*) as count FROM evaluation_runs WHERE project_id = ?").get(projectId) as { count: number };
+    return Number(row?.count || 0) + 1;
+  } catch {
+    return 1;
+  }
+}
+
 export function listProjectRecords() {
   return database()
     .prepare("SELECT project_json FROM projects ORDER BY updated_at DESC")

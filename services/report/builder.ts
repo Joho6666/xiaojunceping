@@ -18,6 +18,8 @@ import { estimateCost } from "../estimation/costEstimator";
 import { mergeEvidence } from "../evidence/evidenceStore";
 import { buildAgentPlan, applyAgentPlanToReport, buildPromptArtifacts } from "../reportCustomizationService";
 import { assessReadiness } from "../evaluation/readinessGate";
+import { buildTraceabilityPlan } from "../planning/traceability";
+import { nextPlanVersion } from "../historyStore";
 
 export function buildLiveReport(input: {
   project: Project;
@@ -156,7 +158,12 @@ export function buildLiveReport(input: {
     requirementCompleteness: profile.completeness?.score,
     estimateMethod: "heuristic-v1",
     planVersion: 1,
+    executionPlan: buildTraceabilityPlan(profile, agents.agents, tools.tools),
   };
+  report.planVersion = nextPlanVersion(project.id);
+  if ((report.executionPlan?.coverage || 0) < 1 && (profile.requiredFeatures || []).length) {
+    report.blockingIssues = Array.from(new Set([...(report.blockingIssues || []), "存在没有施工任务的 Required Feature"]));
+  }
   report.readiness = assessReadiness(profile, report);
   const agentPlan = buildAgentPlan(project, profile, report, models.models.find((item) => item.roleKind === "execution")?.modelId || evaluator.model);
   report.agentPlan = agentPlan;

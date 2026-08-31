@@ -147,6 +147,22 @@ GitHub 相关度不再使用搜索名次或纯 Star，而是加权：
 - 项目专属 Agent 顺序、模型路由、Workflow、AGENTS.md、Master Prompt 和单 Agent Prompt
 - 历史记录、报告导出、模型比较、风险、时间 / 实施 Token / API 成本预测
 
+## 给别人的 5 分钟上手
+
+```bash
+git clone https://github.com/Joho6666/xiaojunceping.git
+cd xiaojunceping
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+打开 http://localhost:3000 → `/settings/ai` 连接 **Codex CLI** 或 **DeepSeek / OpenAI-compatible API**。没有可评估模型时首页不能开始，系统也不会用示例报告顶上。
+
+试跑：`STM32 温控器，使用 Keil，读取 DS18B20，OLED 显示`。应看到 embedded/firmware，不应默认出现 Web 或 Shopify。
+
+可选：`GITHUB_TOKEN` 提高仓库核验；`EMBEDDING_BASE_URL` + `EMBEDDING_API_KEY` + `EMBEDDING_MODEL` 才会启用 hybrid 检索。
+
 ## 快速开始
 
 ```bash
