@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCodexModelOptions } from "../../../../../../../services/connectionService";
 
-export async function GET(_: Request, { params }: { params: { provider: string } }) {
+export async function GET(_: Request, { params: paramsPromise }: { params: Promise<{ provider: string }> }) {
+  const params = await paramsPromise;
   if (params.provider !== "openai") return NextResponse.json({ error: "PROVIDER_NOT_SUPPORTED" }, { status: 400 });
   try {
     return NextResponse.json({ models: await getCodexModelOptions() });

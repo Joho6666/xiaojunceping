@@ -32,7 +32,8 @@ function providerErrorMessage(
   return `${providerName} 连接失败${safeDetail ? `：${safeDetail}` : ""}`;
 }
 
-export async function POST(_: Request, { params }: { params: { id: string } }) {
+export async function POST(_: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   const connection = listConnections().find((x) => x.id === params.id);
   if (!connection)
     return NextResponse.json(

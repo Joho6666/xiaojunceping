@@ -7,7 +7,8 @@ import { Project, AnswerValue, ProjectKind } from '../../../../../types';
 
 const PROJECT_KINDS: ProjectKind[] = ['video', 'web', 'cad', 'pcb', 'automation', 'general'];
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   let body: { project?: Project; answers?: Record<string, AnswerValue> };
   try {
     body = await request.json() as { project?: Project; answers?: Record<string, AnswerValue> };
