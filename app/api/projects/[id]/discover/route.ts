@@ -4,7 +4,8 @@ import { AnswerValue, Project } from "../../../../../types";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   try {
     const body = await request.json() as { project?: Project; answers?: Record<string, AnswerValue> };
     if (!body.project || body.project.id !== params.id) return NextResponse.json({ error: "PROJECT_REQUIRED" }, { status: 400 });
